@@ -1,0 +1,617 @@
+/* ==========================================================================
+   1. ROOT THEME & COLOR-SCHEME TOKENS (Compliant with modern-web-guidance: dark-mode)
+   ========================================================================== */
+:root {
+  /* Raw light and dark tokens */
+  --bg-canvas-light: #f4f6fb;
+  --bg-canvas-dark: #090d16;
+  --bg-panel-light: #ffffff;
+  --bg-panel-dark: #111827;
+  --bg-elevated-light: #eef2f9;
+  --bg-elevated-dark: #1e293b;
+  --text-primary-light: #0f172a;
+  --text-primary-dark: #f1f5f9;
+  --text-muted-light: #475569;
+  --text-muted-dark: #94a3b8;
+  --border-subtle-light: #cbd5e1;
+  --border-subtle-dark: #263248;
+
+  --brand-accent-light: #b91c1c;
+  --brand-accent-dark: #f87171;
+  --danger-bg-light: #fee2e2;
+  --danger-bg-dark: #3f151b;
+  --danger-text-light: #991b1b;
+  --danger-text-dark: #fca5a5;
+
+  --warn-bg-light: #fef3c7;
+  --warn-bg-dark: #3b2a10;
+  --warn-text-light: #92400e;
+  --warn-text-dark: #fcd34d;
+
+  --ok-bg-light: #dcfce7;
+  --ok-bg-dark: #0f3322;
+  --ok-text-light: #166534;
+  --ok-text-dark: #86efac;
+
+  --scrollbar-thumb-light: #94a3b8;
+  --scrollbar-thumb-dark: #475569;
+  --scrollbar-track-light: #e2e8f0;
+  --scrollbar-track-dark: #0f172a;
+
+  /* Default (Light) fallback */
+  --bg-canvas: var(--bg-canvas-light);
+  --bg-panel: var(--bg-panel-light);
+  --bg-elevated: var(--bg-elevated-light);
+  --text-primary: var(--text-primary-light);
+  --text-muted: var(--text-muted-light);
+  --border-subtle: var(--border-subtle-light);
+  --accent-color: var(--brand-accent-light);
+  --danger-bg: var(--danger-bg-light);
+  --danger-text: var(--danger-text-light);
+  --warn-bg: var(--warn-bg-light);
+  --warn-text: var(--warn-text-light);
+  --ok-bg: var(--ok-bg-light);
+  --ok-text: var(--ok-text-light);
+  --scrollbar-thumb: var(--scrollbar-thumb-light);
+  --scrollbar-track: var(--scrollbar-track-light);
+
+  /* MANDATORY Fallback for browsers without light-dark() support */
+  @media (prefers-color-scheme: dark) {
+    --bg-canvas: var(--bg-canvas-dark);
+    --bg-panel: var(--bg-panel-dark);
+    --bg-elevated: var(--bg-elevated-dark);
+    --text-primary: var(--text-primary-dark);
+    --text-muted: var(--text-muted-dark);
+    --border-subtle: var(--border-subtle-dark);
+    --accent-color: var(--brand-accent-dark);
+    --danger-bg: var(--danger-bg-dark);
+    --danger-text: var(--danger-text-dark);
+    --warn-bg: var(--warn-bg-dark);
+    --warn-text: var(--warn-text-dark);
+    --ok-bg: var(--ok-bg-dark);
+    --ok-text: var(--ok-text-dark);
+    --scrollbar-thumb: var(--scrollbar-thumb-dark);
+    --scrollbar-track: var(--scrollbar-track-dark);
+  }
+
+  /* Progressive enhancement with light-dark() */
+  @supports (color: light-dark(white, black)) {
+    --bg-canvas: light-dark(var(--bg-canvas-light), var(--bg-canvas-dark));
+    --bg-panel: light-dark(var(--bg-panel-light), var(--bg-panel-dark));
+    --bg-elevated: light-dark(var(--bg-elevated-light), var(--bg-elevated-dark));
+    --text-primary: light-dark(var(--text-primary-light), var(--text-primary-dark));
+    --text-muted: light-dark(var(--text-muted-light), var(--text-muted-dark));
+    --border-subtle: light-dark(var(--border-subtle-light), var(--border-subtle-dark));
+    --accent-color: light-dark(var(--brand-accent-light), var(--brand-accent-dark));
+    --danger-bg: light-dark(var(--danger-bg-light), var(--danger-bg-dark));
+    --danger-text: light-dark(var(--danger-text-light), var(--danger-text-dark));
+    --warn-bg: light-dark(var(--warn-bg-light), var(--warn-bg-dark));
+    --warn-text: light-dark(var(--warn-text-light), var(--warn-text-dark));
+    --ok-bg: light-dark(var(--ok-bg-light), var(--ok-bg-dark));
+    --ok-text: light-dark(var(--ok-text-light), var(--ok-text-dark));
+    --scrollbar-thumb: light-dark(var(--scrollbar-thumb-light), var(--scrollbar-thumb-dark));
+    --scrollbar-track: light-dark(var(--scrollbar-track-light), var(--scrollbar-track-dark));
+  }
+
+  /* MANDATORY: Apply color-scheme to :root for viewport-wide theming */
+  color-scheme: light dark;
+  accent-color: var(--accent-color);
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Legacy fallback for WebKit/Blink browsers without scrollbar-color */
+@supports not (scrollbar-color: auto) {
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+  }
+  *::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  line-height: 1.45;
+  padding-block-end: 2.5rem;
+}
+
+.sr-only {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* ==========================================================================
+   2. HEADER & CONTROLS
+   ========================================================================== */
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background-color: var(--bg-panel);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.brand-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.15rem 0.55rem;
+  border-radius: 4px;
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  margin-block-end: 0.25rem;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.inline-form {
+  display: flex;
+  gap: 0.35rem;
+}
+
+input[type="text"],
+input[type="number"] {
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.btn {
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.btn.primary {
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: var(--accent-color);
+}
+
+.btn.accent {
+  background-color: var(--accent-color);
+  color: #ffffff;
+  border-color: transparent;
+}
+
+.btn.active {
+  border-color: var(--accent-color);
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+/* ==========================================================================
+   3. DASHBOARD GRID & KPI CARDS
+   ========================================================================== */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 540px), 1fr));
+  gap: 1.25rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.span-full {
+  grid-column: 1 / -1;
+}
+
+.panel {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 1.15rem;
+}
+
+.panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-block-end: 1rem;
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.panel-desc {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.meta-tag {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.9rem;
+  margin-block-end: 1.1rem;
+}
+
+.kpi-card {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+}
+
+.kpi-label {
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.kpi-value-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-block: 0.35rem;
+}
+
+.kpi-number {
+  font-size: 1.65rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.kpi-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.pill-danger {
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+.pill-warn {
+  background-color: var(--warn-bg);
+  color: var(--warn-text);
+}
+
+.pill-ok {
+  background-color: var(--ok-bg);
+  color: var(--ok-text);
+}
+
+.split-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr));
+  gap: 1rem;
+}
+
+/* ==========================================================================
+   4. RESPONSIVE TABLES (Compliant with modern-web-guidance: responsive-table)
+   ========================================================================== */
+.table-wrapper {
+  overflow: auto;
+  max-inline-size: 100%;
+  max-block-size: min(560px, 78vh);
+  container-type: inline-size;
+  scrollbar-gutter: stable;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+table {
+  inline-size: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.82rem;
+}
+
+caption {
+  text-align: start;
+  padding: 0.55rem 0.85rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background-color: var(--bg-elevated);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+/* Sticky column headers (desktop) */
+thead {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+}
+
+thead th {
+  background-color: var(--bg-elevated);
+  color: var(--text-muted);
+  font-weight: 600;
+  text-align: start;
+  padding: 0.55rem 0.7rem;
+  border-block-end: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+tbody tr {
+  cursor: pointer;
+}
+
+tbody tr:hover td,
+tbody tr:hover th {
+  background-color: var(--bg-elevated);
+}
+
+/* Sticky row headers (desktop) */
+tbody th {
+  position: sticky;
+  inset-inline-start: 0;
+  z-index: 1;
+  background-color: var(--bg-panel);
+  text-align: start;
+  padding: 0.55rem 0.7rem;
+  border-block-end: 1px solid var(--border-subtle);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+tbody td {
+  padding: 0.55rem 0.7rem;
+  border-block-end: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+/* Responsive Stacked Layout when container width < 600px */
+@container (width < 600px) {
+  table,
+  thead,
+  tbody,
+  tr,
+  th,
+  td {
+    display: block;
+  }
+
+  thead {
+    /* MANDATORY: Hide column header from layout and screen readers */
+    display: none;
+  }
+
+  tr {
+    margin-block-end: 1rem;
+    border: 1px solid var(--border-subtle);
+  }
+
+  tbody th {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    background-color: var(--bg-elevated);
+  }
+
+  .screener-table {
+    --label-2: "Short Score / Rating";
+    --label-3: "Execution State";
+    --label-4: "Classification";
+    --label-5: "Price / ATR14";
+    --label-6: "A: Trend (25%)";
+    --label-7: "B: RelWeak (15%)";
+    --label-8: "C: Vol/Dist (15%)";
+    --label-9: "D: Fund/Cat (25%)";
+    --label-10: "E: Squeeze Risk";
+    --label-11: "Entry / Stop / T1";
+    --label-12: "R/R & Size";
+    --label-13: "Action Card";
+  }
+
+  .screener-table td:nth-child(2)::before { content: var(--label-2) ": "; font-weight: 600; }
+  .screener-table td:nth-child(3)::before { content: var(--label-3) ": "; font-weight: 600; }
+  .screener-table td:nth-child(4)::before { content: var(--label-4) ": "; font-weight: 600; }
+  .screener-table td:nth-child(5)::before { content: var(--label-5) ": "; font-weight: 600; }
+  .screener-table td:nth-child(6)::before { content: var(--label-6) ": "; font-weight: 600; }
+  .screener-table td:nth-child(7)::before { content: var(--label-7) ": "; font-weight: 600; }
+  .screener-table td:nth-child(8)::before { content: var(--label-8) ": "; font-weight: 600; }
+  .screener-table td:nth-child(9)::before { content: var(--label-9) ": "; font-weight: 600; }
+  .screener-table td:nth-child(10)::before { content: var(--label-10) ": "; font-weight: 600; }
+  .screener-table td:nth-child(11)::before { content: var(--label-11) ": "; font-weight: 600; }
+  .screener-table td:nth-child(12)::before { content: var(--label-12) ": "; font-weight: 600; }
+  .screener-table td:nth-child(13)::before { content: var(--label-13) ": "; font-weight: 600; }
+}
+
+/* ==========================================================================
+   5. ALERTS & WARNINGS
+   ========================================================================== */
+.warnings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-block-end: 0.85rem;
+}
+
+.warning-banner {
+  padding: 0.55rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.81rem;
+  background-color: var(--warn-bg);
+  color: var(--warn-text);
+  border-inline-start: 4px solid var(--accent-color);
+}
+
+.alerts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 0.85rem;
+}
+
+.alert-card {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 0.85rem;
+}
+
+.alert-card.priority-CRITICAL {
+  border-inline-start: 4px solid #ef4444;
+}
+
+.alert-card.priority-HIGH {
+  border-inline-start: 4px solid #f97316;
+}
+
+.alert-card.priority-MEDIUM {
+  border-inline-start: 4px solid #eab308;
+}
+
+.alert-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-block-end: 0.35rem;
+}
+
+.alert-title {
+  font-weight: 700;
+  font-size: 0.86rem;
+  margin: 0.25rem 0;
+}
+
+.alert-msg {
+  font-size: 0.79rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ==========================================================================
+   6. DIALOG MODALS (Compliant with modern-web-guidance: light-dismiss-a-dialog)
+   ========================================================================== */
+dialog {
+  inline-size: min(820px, 92vw);
+  max-block-size: 86vh;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 0;
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+}
+
+dialog::backdrop {
+  background-color: rgba(0, 0, 0, 0.58);
+  backdrop-filter: blur(2px);
+}
+
+.dialog-inner {
+  padding: 1.25rem;
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-block-end: 0.85rem;
+}
+
+.dialog-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.decision-pre {
+  color-scheme: dark;
+  accent-color: var(--accent-color);
+  background-color: #0b1120;
+  color: #e2e8f0;
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.missing-fields-note {
+  margin-block-start: 0.75rem;
+  font-size: 0.79rem;
+  color: var(--warn-text);
+  background-color: var(--warn-bg);
+  padding: 0.6rem 0.85rem;
+  border-radius: 6px;
+}
+
+.override-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.85rem;
+}
+
+.override-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  margin-block-start: 0.5rem;
+}

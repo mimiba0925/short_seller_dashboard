@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- MANDATORY per modern-web-guidance (dark-mode): Declare support for both light and dark themes -->
+  <meta name="color-scheme" content="light dark">
+  <title>US Equity Quant Short-Biased Monitor &amp; Decision Dashboard</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-block">
+      <div class="brand-badge">SHORT-BIASED QUANT ENGINE v1.0</div>
+      <h1>美股量化空方交易監控與決策 Dashboard</h1>
+      <p class="subtitle">Top-Down Pipeline: MARKET → SECTOR → STOCK → TECHNICAL SETUP → CATALYST → TRIGGER → SIZE → STOP → TARGET → EXIT</p>
+    </div>
+    <div class="controls-bar">
+      <form id="addTickerForm" class="inline-form">
+        <label for="tickerInput" class="sr-only">篩選或新增監控股票代碼</label>
+        <input id="tickerInput" type="text" placeholder="搜尋或新增代碼 (如 AAPL, ARM)" maxlength="10">
+        <button type="submit" class="btn primary">+ Watchlist / 篩選</button>
+      </form>
+      <button id="openOverrideBtn" type="button" class="btn secondary">Ortex / IBKR 借券參數輸入</button>
+      <button id="openReportBtn" type="button" class="btn secondary">每日空方日報 (Daily Report)</button>
+      <button id="refreshBtn" type="button" class="btn accent">重新掃描 (Refresh)</button>
+    </div>
+  </header>
+
+  <main class="dashboard-grid">
+    <!-- MODULE 1: MACRO & MARKET REGIME FILTER -->
+    <section class="panel span-full" aria-labelledby="mod1-heading">
+      <div class="panel-header">
+        <h2 id="mod1-heading">模組 1：大盤總體環境監控 (Macro &amp; Market Regime Filter)</h2>
+        <span id="asOfTimestamp" class="meta-tag">載入中...</span>
+      </div>
+      <div class="kpi-row">
+        <article class="kpi-card">
+          <span class="kpi-label">MARKET REGIME SCORE (0–100)</span>
+          <div class="kpi-value-row">
+            <strong id="regimeScoreVal" class="kpi-number">--</strong>
+            <span id="regimeLabelBadge" class="status-pill">--</span>
+          </div>
+          <p id="regimePolicyText" class="kpi-note">--</p>
+        </article>
+
+        <article class="kpi-card">
+          <span class="kpi-label">BREADTH WEAKNESS SCORE</span>
+          <div class="kpi-value-row">
+            <strong id="breadthScoreVal" class="kpi-number">--</strong>
+            <span id="breadthDivBadge" class="status-pill">--</span>
+          </div>
+          <p id="breadthSummaryText" class="kpi-note">--</p>
+        </article>
+
+        <article class="kpi-card">
+          <span class="kpi-label">VOLATILITY REGIME &amp; VIX TERM STRUCTURE</span>
+          <div class="kpi-value-row">
+            <strong id="volScoreVal" class="kpi-number">--</strong>
+            <span id="vixTermBadge" class="status-pill">--</span>
+          </div>
+          <p id="volSummaryText" class="kpi-note">--</p>
+        </article>
+
+        <article class="kpi-card">
+          <span class="kpi-label">PORTFOLIO CORRELATED SHORT RISK</span>
+          <div class="kpi-value-row">
+            <strong id="corrScoreVal" class="kpi-number">--</strong>
+            <span id="effBetsBadge" class="status-pill">--</span>
+          </div>
+          <p id="corrSummaryText" class="kpi-note">--</p>
+        </article>
+      </div>
+
+      <div class="split-row">
+        <div tabindex="0" role="region" aria-labelledby="idx-table-caption" class="table-wrapper">
+          <table class="idx-table">
+            <caption id="idx-table-caption">基準指數均線破位與派發日監控 (SPY / QQQ / IWM)</caption>
+            <thead>
+              <tr>
+                <th scope="col">Index</th>
+                <th scope="col">Close</th>
+                <th scope="col">20EMA (Slope)</th>
+                <th scope="col">50SMA (Slope)</th>
+                <th scope="col">200SMA</th>
+                <th scope="col">25D Dist Days</th>
+                <th scope="col">Bear Score</th>
+              </tr>
+            </thead>
+            <tbody id="indexTableBody"></tbody>
+          </table>
+        </div>
+
+        <div tabindex="0" role="region" aria-labelledby="sec-table-caption" class="table-wrapper">
+          <table class="sec-table">
+            <caption id="sec-table-caption">GICS 板塊 ETF 相對弱勢排行 (Sector Weakness)</caption>
+            <thead>
+              <tr>
+                <th scope="col">Sector ETF</th>
+                <th scope="col">Close</th>
+                <th scope="col">5D Ret</th>
+                <th scope="col">20D Ret</th>
+                <th scope="col">20D RS vs SPY</th>
+                <th scope="col">Dist Days</th>
+                <th scope="col">Weakness</th>
+              </tr>
+            </thead>
+            <tbody id="sectorTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODULE 2 & 3: STOCK SCREENER, FACTOR SCORING & EXECUTION ENGINE -->
+    <section class="panel span-full" aria-labelledby="mod2-heading">
+      <div class="panel-header">
+        <div>
+          <h2 id="mod2-heading">模組 2 &amp; 3：個股空方候選池量化評分與精確進退場引擎 (Screener &amp; Execution FSM)</h2>
+          <p class="panel-desc">明確區分「基本面/結構看空 (Fundamentally Bearish)」與「現在安全可執行做空 (Actionable Short: Rating A+/A + 無軋空 + 財報 &gt; 3天)」。點擊任一列開啟完整決策卡。</p>
+        </div>
+        <div class="filter-pills">
+          <button type="button" class="btn filter-btn active" data-filter="ALL">全部 Watchlist</button>
+          <button type="button" class="btn filter-btn" data-filter="ACTIONABLE">僅 Actionable Short (A+/A)</button>
+          <button type="button" class="btn filter-btn" data-filter="FUND_BEARISH">看空但暫不進場 (Wait/Watch)</button>
+          <button type="button" class="btn filter-btn" data-filter="SQUEEZE">高軋空/事件警告</button>
+        </div>
+      </div>
+
+      <div tabindex="0" role="region" aria-labelledby="screener-table-caption" class="table-wrapper">
+        <table class="screener-table">
+          <caption id="screener-table-caption">個股多因子空方評分與進退場觸發總表 (點擊個股檢視標準決策模板)</caption>
+          <thead>
+            <tr>
+              <th scope="col">Ticker</th>
+              <th scope="col">Short Score / Rating</th>
+              <th scope="col">Execution State</th>
+              <th scope="col">Classification</th>
+              <th scope="col">Price / ATR14</th>
+              <th scope="col">A: Trend (25%)</th>
+              <th scope="col">B: RelWeak (15%)</th>
+              <th scope="col">C: Vol/Dist (15%)</th>
+              <th scope="col">D: Fund/Cat (25%)</th>
+              <th scope="col">E: Squeeze Risk</th>
+              <th scope="col">Entry / Stop / T1</th>
+              <th scope="col">R/R &amp; Size</th>
+              <th scope="col">決策卡</th>
+            </tr>
+          </thead>
+          <tbody id="screenerTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- MODULE 4: PORTFOLIO RISK & WALK-FORWARD BACKTESTING -->
+    <section class="panel" aria-labelledby="mod4a-heading">
+      <div class="panel-header">
+        <h2 id="mod4a-heading">模組 4A：組合級別風險與共線性監控 (Correlated Short Risk)</h2>
+      </div>
+      <div id="portfolioWarningsBox" class="warnings-list"></div>
+      <div tabindex="0" role="region" aria-labelledby="cluster-table-caption" class="table-wrapper">
+        <table class="cluster-table">
+          <caption id="cluster-table-caption">60 日高相關係數空頭集群 (Pairwise Correlation Clusters)</caption>
+          <thead>
+            <tr>
+              <th scope="col">Ticker Pair</th>
+              <th scope="col">60D Correlation (&rho;)</th>
+              <th scope="col">Risk Classification</th>
+            </tr>
+          </thead>
+          <tbody id="clusterTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="mod4b-heading">
+      <div class="panel-header">
+        <h2 id="mod4b-heading">模組 4B：無前視偏誤歷史訊號回測 (Walk-Forward Signal Quality)</h2>
+      </div>
+      <p id="backtestMethodNote" class="panel-desc"></p>
+      <div tabindex="0" role="region" aria-labelledby="grade-table-caption" class="table-wrapper">
+        <table class="grade-table">
+          <caption id="grade-table-caption">各訊號等級 (A+ / A / B / C) 歷史勝率與期望值驗證</caption>
+          <thead>
+            <tr>
+              <th scope="col">Signal Grade</th>
+              <th scope="col">Trades</th>
+              <th scope="col">Win Rate</th>
+              <th scope="col">Avg R-Multiple</th>
+              <th scope="col">Profit Factor</th>
+              <th scope="col">Sharpe</th>
+              <th scope="col">Max DD</th>
+            </tr>
+          </thead>
+          <tbody id="gradeBacktestBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- MODULE 5: REAL-TIME WEBHOOK & PRIORITY ALERTS -->
+    <section class="panel span-full" aria-labelledby="mod5-heading">
+      <div class="panel-header">
+        <h2 id="mod5-heading">模組 5：即時優先級警報與 Webhook 觸發流 (Real-Time Priority Alerts)</h2>
+      </div>
+      <div id="alertsContainer" class="alerts-grid"></div>
+    </section>
+  </main>
+
+  <!-- MODAL 1: INDIVIDUAL STOCK DECISION TEMPLATE (MANDATORY light-dismiss-a-dialog) -->
+  <dialog id="decisionModal" closedby="any" aria-labelledby="modalTickerTitle">
+    <div class="dialog-inner">
+      <div class="dialog-header">
+        <h2 id="modalTickerTitle">個股最終決策輸出模板 (Standardized Short Decision Output)</h2>
+        <form method="dialog">
+          <button type="submit" class="btn secondary">關閉 (Esc)</button>
+        </form>
+      </div>
+      <pre id="modalDecisionPre" class="decision-pre"></pre>
+      <div id="modalMissingFieldsBox" class="missing-fields-note"></div>
+    </div>
+  </dialog>
+
+  <!-- MODAL 2: DAILY SHORT MARKET REPORT -->
+  <dialog id="reportModal" closedby="any" aria-labelledby="reportModalTitle">
+    <div class="dialog-inner">
+      <div class="dialog-header">
+        <h2 id="reportModalTitle">DAILY SHORT MARKET REPORT (每日空方市場報告)</h2>
+        <form method="dialog">
+          <button type="submit" class="btn secondary">關閉 (Esc)</button>
+        </form>
+      </div>
+      <pre id="dailyReportPre" class="decision-pre"></pre>
+    </div>
+  </dialog>
+
+  <!-- MODAL 3: INSTITUTIONAL DATA OVERRIDE (ORTEX / IBKR BORROW FEE & CATALYST) -->
+  <dialog id="overrideModal" closedby="any" aria-labelledby="overrideModalTitle">
+    <div class="dialog-inner">
+      <div class="dialog-header">
+        <h2 id="overrideModalTitle">輸入機構級借券費率與衍生品參數 (Ortex / IBKR Override)</h2>
+        <form method="dialog">
+          <button type="submit" class="btn secondary">關閉 (Esc)</button>
+        </form>
+      </div>
+      <p class="panel-desc">當免費資料源缺乏即時 Borrow Fee Rate 或 GEX 時，系統預設標記為 <code>DATA UNAVAILABLE</code>。您可於此注入實盤券商借券費率與催化劑參數以重新計算軋空風險。</p>
+      <form id="overrideForm" class="override-form">
+        <label>
+          股票代碼 (Ticker)
+          <input type="text" id="ovTicker" placeholder="例如 MSTR 或 CVNA" required>
+        </label>
+        <label>
+          年化借券費率 Borrow Fee Rate (%)
+          <input type="number" id="ovBorrowFee" step="0.1" placeholder="例如 18.5">
+        </label>
+        <label>
+          Short Interest % of Float (%)
+          <input type="number" id="ovSiPct" step="0.1" placeholder="例如 24.0">
+        </label>
+        <label>
+          Days to Cover (天)
+          <input type="number" id="ovDtc" step="0.1" placeholder="例如 6.5">
+        </label>
+        <label>
+          距離財報天數 (Days to Earnings)
+          <input type="number" id="ovEarningsDays" step="1" placeholder="例如 2 (&lt;=3 觸發紅色警告)">
+        </label>
+        <label>
+          Dealer Gamma Exposure (GEX Regime)
+          <input type="text" id="ovGex" placeholder="例如 Negative Gamma (-$450M)">
+        </label>
+        <div class="form-actions">
+          <button type="submit" class="btn primary">套用並重算因子評分</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <script src="./snapshot.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

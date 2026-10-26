@@ -1,0 +1,186 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0
+// © ShortBiasedQuantDashboard
+//@version=5
+indicator("US Equity Quant Short-Biased Engine & Regime HUD [v1.0]", shorttitle="QuantShortHUD", overlay=true, max_lines_count=50, max_labels_count=50)
+
+// ============================================================================
+// 1. INPUT PARAMETERS
+// ============================================================================
+grp_regime = "Module 1: Macro & Market Regime Filter"
+bench_spy  = input.symbol("AMEX:SPY", "Benchmark 1 (SPY)", group=grp_regime)
+bench_qqq  = input.symbol("NASDAQ:QQQ", "Benchmark 2 (QQQ)", group=grp_regime)
+bench_iwm  = input.symbol("AMEX:IWM", "Benchmark 3 (IWM)", group=grp_regime)
+vix_sym    = input.symbol("CBOE:VIX", "VIX Index", group=grp_regime)
+vix3m_sym  = input.symbol("CBOE:VIX3M", "VIX3M (3-Month VIX)", group=grp_regime)
+
+grp_tech   = "Module 2 & 3: Technical Breakdown & Execution"
+len_ema20  = input.int(20, "Fast EMA (20EMA)", group=grp_tech)
+len_sma50  = input.int(50, "Medium SMA (50DMA)", group=grp_tech)
+len_sma200 = input.int(200, "Slow SMA (200DMA)", group=grp_tech)
+piv_lookbk = input.int(20, "Structural Support Lookback (Bars)", group=grp_tech)
+atr_len    = input.int(14, "ATR Length", group=grp_tech)
+atr_mult   = input.float(1.75, "Dynamic Stop ATR Multiplier", minval=1.0, maxval=3.5, step=0.05, group=grp_tech)
+
+grp_risk   = "Module 4: Account & Risk Sizing"
+acct_size  = input.float(100000.0, "Account Equity ($)", group=grp_risk)
+risk_pct   = input.float(0.75, "Base Risk Per Trade (%)", minval=0.1, maxval=3.0, step=0.05, group=grp_risk)
+
+// ============================================================================
+// 2. MODULE 1: MACRO & MARKET REGIME ENGINE
+// ============================================================================
+f_idx_bear_score(_close, _ema20, _sma50, _sma200) =>
+    float s = 0.0
+    s += _close < _ema20 ? 35.0 : 0.0
+    s += _ema20 < _ema20[5] ? 15.0 : 0.0
+    s += _close < _sma50 ? 30.0 : 0.0
+    s += _close < _sma200 ? 20.0 : 0.0
+    s
+
+[spy_c, spy_e20, spy_s50, spy_s200] = request.security(bench_spy, timeframe.period, [close, ta.ema(close, 20), ta.sma(close, 50), ta.sma(close, 200)])
+[qqq_c, qqq_e20, qqq_s50, qqq_s200] = request.security(bench_qqq, timeframe.period, [close, ta.ema(close, 20), ta.sma(close, 50), ta.sma(close, 200)])
+[iwm_c, iwm_e20, iwm_s50, iwm_s200] = request.security(bench_iwm, timeframe.period, [close, ta.ema(close, 20), ta.sma(close, 50), ta.sma(close, 200)])
+vix_c   = request.security(vix_sym, timeframe.period, close)
+vix3m_c = request.security(vix3m_sym, timeframe.period, close)
+
+spy_score = f_idx_bear_score(spy_c, spy_e20, spy_s50, spy_s200)
+qqq_score = f_idx_bear_score(qqq_c, qqq_e20, qqq_s50, qqq_s200)
+iwm_score = f_idx_bear_score(iwm_c, iwm_e20, iwm_s50, iwm_s200)
+
+vix_ratio = nz(vix3m_c) > 0 ? vix_c / vix3m_c : 0.90
+vol_score = (vix_c > 20 ? 45.0 : vix_c > 16 ? 25.0 : 5.0) + (vix_ratio >= 1.0 ? 55.0 : vix_ratio >= 0.92 ? 30.0 : 0.0)
+
+market_regime_score = math.round(0.30 * spy_score + 0.25 * qqq_score + 0.20 * iwm_score + 0.25 * vol_score)
+regime_state = market_regime_score >= 61 ? "RISK-OFF (Short Book Open)" : market_regime_score >= 41 ? "NEUTRAL (Selective Watch)" : "RISK-ON (Block/Reduce Shorts)"
+
+// ============================================================================
+// 3. MODULE 2: STOCK TECHNICAL & VOLUME DISTRIBUTION FACTORS
+// ============================================================================
+ema20  = ta.ema(close, len_ema20)
+sma50  = ta.sma(close, len_sma50)
+sma200 = ta.sma(close, len_sma200)
+vwap_d = ta.vwap(hlc3)
+atr14  = ta.atr(atr_len)
+vol_ma = ta.sma(volume, 20)
+rsi14  = ta.rsi(close, 14)
+[macd_line, sig_line, hist_line] = ta.macd(close, 12, 26, 9)
+
+// Structural Support (Prior N-bar lowest low, shifted by 1 bar to prevent look-ahead bias)
+support_lvl = ta.lowest(low, piv_lookbk)[1]
+swing_high5 = ta.highest(high, 5)[1]
+
+// Factor A: Trend & Breakdown (0-100)
+z_dist20 = atr14 > 0 ? (close - ema20) / atr14 : 0.0
+overextended_short = z_dist20 < -3.0
+trend_score = 0.0
+trend_score += close < ema20 ? 20.0 : 0.0
+trend_score += ema20 < ema20[5] ? 15.0 : 0.0
+trend_score += close < sma50 ? 25.0 : 0.0
+trend_score += close < sma200 ? 15.0 : 0.0
+trend_score += close < support_lvl ? 25.0 : (close < support_lvl + 0.5 * atr14 ? 12.0 : 0.0)
+trend_score := math.max(0.0, overextended_short ? trend_score - 20.0 : trend_score)
+
+// Factor B: Relative Weakness & Momentum (0-100)
+stock_ret20 = close / close[20] - 1.0
+spy_ret20   = spy_c / spy_c[20] - 1.0
+alpha20     = stock_ret20 - spy_ret20
+rs_score    = 0.0
+rs_score   += alpha20 < -0.08 ? 45.0 : alpha20 < -0.03 ? 30.0 : alpha20 < 0 ? 15.0 : 0.0
+rs_score   += (rsi14 >= 32 and rsi14 <= 52 and rsi14 < rsi14[3]) ? 30.0 : 0.0
+rs_score   += (hist_line < 0 and macd_line < sig_line) ? 25.0 : 0.0
+
+// Factor C: Volume & Institutional Distribution (0-100)
+is_dist_day = (close < close[1] * 0.99) and (volume > vol_ma)
+dist_days25 = math.sum(is_dist_day ? 1 : 0, 25)
+up_vol      = close > close[1] ? volume : 0.0
+dn_vol      = close < close[1] ? volume : 0.0
+ud_ratio    = math.sum(up_vol, 20) > 0 ? math.sum(dn_vol, 20) / math.sum(up_vol, 20) : 1.0
+vol_dist_score = math.min(50.0, dist_days25 * 10.0) + (ud_ratio > 1.3 ? 50.0 : ud_ratio > 1.05 ? 30.0 : 0.0)
+
+// Technical Composite Proxy (Fundamentals & Borrow Fee marked N/A in pure OHLCV Pine context)
+tech_short_score = math.round(0.45 * trend_score + 0.30 * rs_score + 0.25 * vol_dist_score)
+rating_str = tech_short_score >= 85 ? "A+" : tech_short_score >= 72 ? "A" : tech_short_score >= 58 ? "B" : tech_short_score >= 40 ? "C" : "D"
+
+// ============================================================================
+// 4. MODULE 3: EXECUTION TRIGGERS, DYNAMIC STOP & TARGETS
+// ============================================================================
+bar_close_loc = (high - low) > 0 ? (close - low) / (high - low) : 0.5
+trig_breakdown = (close < support_lvl) and (volume >= 1.35 * vol_ma) and (bar_close_loc <= 0.35) and not overextended_short
+trig_failed_bounce = (close < sma50) and (high >= ema20 - 0.35 * atr14) and (close < ema20) and (close < open) and (close < low[1]) and (volume[1] < vol_ma)
+
+entry_trigger_fired = (trig_breakdown or trig_failed_bounce) and (market_regime_score >= 45) and (tech_short_score >= 72)
+short_setup_ready   = not entry_trigger_fired and (tech_short_score >= 68) and (market_regime_score >= 41)
+
+stop_price   = math.max(swing_high5 + 0.25 * atr14, close + atr_mult * atr14)
+risk_per_sh  = math.max(0.01, stop_price - close)
+target1      = close - 2.0 * risk_per_sh
+target2      = close - 3.5 * risk_per_sh
+rr_ratio     = (close - target1) / risk_per_sh
+
+regime_mult  = market_regime_score >= 61 ? 1.0 : market_regime_score >= 41 ? 0.5 : 0.0
+max_risk_usd = acct_size * (risk_pct / 100.0) * regime_mult
+pos_shares   = math.floor(max_risk_usd / risk_per_sh)
+
+// Exit / Cover signals
+oversold_rev = (rsi14 < 28) and (close > open) and (volume > 1.8 * vol_ma)
+reclaim_ma   = ta.crossover(close, ema20) and (close > sma50)
+
+action_state = market_regime_score < 40 ? "WAIT (Regime Risk-On)" :
+               reclaim_ma ? "EXIT (Reclaimed MA)" :
+               oversold_rev ? "REDUCE (Oversold Climax)" :
+               entry_trigger_fired ? "ENTRY (Trigger Confirmed)" :
+               short_setup_ready ? "SHORT SETUP (Await Trigger)" :
+               tech_short_score >= 58 ? "WATCH" : "WAIT"
+
+// ============================================================================
+// 5. PLOTTING & QUANT HUD TABLE
+// ============================================================================
+plot(ema20, "20 EMA", color=color.new(#f59e0b, 15), linewidth=2)
+plot(sma50, "50 SMA", color=color.new(#ef4444, 15), linewidth=2)
+plot(sma200, "200 SMA", color=color.new(#6366f1, 20), linewidth=2)
+plot(support_lvl, "20D Structural Support", color=color.new(#10b981, 40), style=plot.style_stepline)
+
+plotshape(trig_breakdown and market_regime_score >= 45, title="Breakdown Short Trigger", style=shape.triangledown, location=location.abovebar, color=color.new(#ef4444, 0), size=size.small, text="BRK SHORT")
+plotshape(trig_failed_bounce and market_regime_score >= 45, title="Failed Bounce Short Trigger", style=shape.labeldown, location=location.abovebar, color=color.new(#dc2626, 0), textcolor=color.white, size=size.tiny, text="FAIL BOUNCE")
+
+var table hud = table.new(position.top_right, 2, 11, bgcolor=color.new(#0f172a, 10), border_color=color.new(#334155, 30), border_width=1)
+if barstate.islast
+    table.cell(hud, 0, 0, "QUANT SHORT ENGINE", text_color=color.white, bgcolor=color.new(#1e293b, 0), text_size=size.small)
+    table.cell(hud, 1, 0, syminfo.ticker, text_color=#38bdf8, bgcolor=color.new(#1e293b, 0), text_size=size.small)
+
+    table.cell(hud, 0, 1, "MARKET REGIME", text_color=#94a3b8, text_size=size.tiny)
+    table.cell(hud, 1, 1, str.tostring(market_regime_score) + "/100 (" + regime_state + ")", text_color=market_regime_score >= 61 ? #f87171 : market_regime_score >= 41 ? #fbbf24 : #4ade80, text_size=size.tiny)
+
+    table.cell(hud, 0, 2, "VIX / VIX3M", text_color=#94a3b8, text_size=size.tiny)
+    table.cell(hud, 1, 2, str.tostring(vix_c, "#.##") + " / Ratio: " + str.tostring(vix_ratio, "#.##") + (vix_ratio >= 1.0 ? " [INVERTED]" : ""), text_color=vix_ratio >= 1.0 ? #f87171 : #e2e8f0, text_size=size.tiny)
+
+    table.cell(hud, 0, 3, "TECH SHORT SCORE", text_color=#94a3b8, text_size=size.tiny)
+    table.cell(hud, 1, 3, str.tostring(tech_short_score) + "/100 [Rating: " + rating_str + "]", text_color=tech_short_score >= 72 ? #f87171 : #e2e8f0, text_size=size.tiny)
+
+    table.cell(hud, 0, 4, "DIST DAYS (25D)", text_color=#94a3b8, text_size=size.tiny)
+    table.cell(hud, 1, 4, str.tostring(dist_days25) + " days | U/D Vol: " + str.tostring(ud_ratio, "#.##") + "x", text_color=#e2e8f0, text_size=size.tiny)
+
+    table.cell(hud, 0, 5, "BORROW / SI%", text_color=#94a3b8, text_size=size.tiny)
+    table.cell(hud, 1, 5, "DATA UNAVAILABLE (Use Python Engine)", text_color=#fbbf24, text_size=size.tiny)
+
+    table.cell(hud, 0, 6, "STOP (1.75x ATR/Swing)", text_color=#94a3b8, text_size=size.tiny)
+    table.cell(hud, 1, 6, "$" + str.tostring(stop_price, "#.##") + " (Risk: $" + str.tostring(risk_per_sh, "#.##") + "/sh)", text_color=#fca5a5, text_size=size.tiny)
+
+    table.cell(hud, 0, 7, "TARGETS (T1 / T2)", text_color=#94a3b8, text_size=size.tiny)
+    table.cell(hud, 1, 7, "$" + str.tostring(target1, "#.##") + " / $" + str.tostring(target2, "#.##") + " (R/R " + str.tostring(rr_ratio, "#.#") + "x)", text_color=#86efac, text_size=size.tiny)
+
+    table.cell(hud, 0, 8, "SUGGESTED SIZE", text_color=#94a3b8, text_size=size.tiny)
+    table.cell(hud, 1, 8, str.tostring(pos_shares) + " sh ($" + str.tostring(max_risk_usd, "#") + " max risk)", text_color=#e2e8f0, text_size=size.tiny)
+
+    table.cell(hud, 0, 9, "ACTION STATE", text_color=#94a3b8, text_size=size.tiny)
+    table.cell(hud, 1, 9, action_state, text_color=entry_trigger_fired ? #ef4444 : #38bdf8, text_size=size.tiny)
+
+    table.cell(hud, 0, 10, "INVALIDATION", text_color=#94a3b8, text_size=size.tiny)
+    table.cell(hud, 1, 10, "Daily Close > $" + str.tostring(stop_price, "#.##"), text_color=#cbd5e1, text_size=size.tiny)
+
+// ============================================================================
+// 6. WEBHOOK ALERT CONDITIONS
+// ============================================================================
+alertcondition(entry_trigger_fired, title="[HIGH] Actionable Short Entry Trigger", message='{"ticker":"{{ticker}}","priority":"HIGH","action":"ENTRY","price":{{close}}}')
+alertcondition(short_setup_ready, title="[MEDIUM] Short Setup Candidate", message='{"ticker":"{{ticker}}","priority":"MEDIUM","action":"SHORT_SETUP","price":{{close}}}')
+alertcondition(oversold_rev, title="[MEDIUM] Short Reduce - Oversold Climax", message='{"ticker":"{{ticker}}","priority":"MEDIUM","action":"REDUCE","price":{{close}}}')
+alertcondition(reclaim_ma, title="[CRITICAL] Short Exit - MA Reclaimed", message='{"ticker":"{{ticker}}","priority":"CRITICAL","action":"EXIT","price":{{close}}}')

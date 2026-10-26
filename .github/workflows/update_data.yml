@@ -1,0 +1,72 @@
+name: Auto Update & Deploy US Short Seller Quant Dashboard
+
+# ==============================================================================
+# 美股量化空方資料更新時程（皆換算為台灣時間 TST = UTC+8）：
+#   1. 22:00 TST (14:00 UTC, 週一至週五) — 美股開盤後更新早盤跳空、VIX 期限結構與大盤 Regime
+#   2. 01:30 TST (17:30 UTC, 週二至週六) — 美股盤中更新 VWAP / 20EMA Failed Bounce 與帶量破位觸發
+#   3. 05:15 TST (21:15 UTC, 週二至週六) — 美股收盤結算完整 SHORT SCORE、派發日與每日空方日報
+# 另外：
+#   - 只要在 GitHub 線上編輯並 Commit `config/watchlist.csv` 或 `build_static.py`，
+#     立即觸發自動重算並更新 GitHub Pages！
+#   - 亦可隨時至 GitHub Actions 點選「Run workflow」手動立即更新。
+# ==============================================================================
+on:
+  schedule:
+    - cron: "0 14 * * 1-5"
+    - cron: "30 17 * * 1-5"
+    - cron: "15 21 * * 1-5"
+  push:
+    branches: [main]
+    paths:
+      - "config/watchlist.csv"
+      - "short_dashboard/**"
+      - "build_static.py"
+      - ".github/workflows/update_data.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: short-dashboard-update
+  cancel-in-progress: true
+
+jobs:
+  update-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: America/New_York
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build latest short seller snapshot & daily report
+        run: |
+          git pull --rebase origin main
+          python build_static.py
+
+      - name: Commit & push updated snapshot to main branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html styles.css app.js snapshot.js DAILY_SHORT_REPORT.md config/watchlist.csv
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore(data): auto update US short seller snapshot ($(date '+%Y-%m-%d %H:%M ET')) [skip ci]"
+            git push origin HEAD:main
+          fi
