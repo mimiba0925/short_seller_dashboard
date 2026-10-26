@@ -47,7 +47,7 @@ def compute_rsi(series: pd.Series, period: int = 14) -> pd.Series:
 
 
 def _score_factor_a_trend(df: pd.DataFrame, atr14: float) -> Tuple[float, str, str, Dict[str, Any]]:
-    """Factor A: Price Trend & Structural Breakdown (25% weight)."""
+    """Factor A: Price Trend & Structural Breakdown (25% weight, 分數越高越有利空方)."""
     close = float(df["Close"].iloc[-1])
     ema20_s = df["Close"].ewm(span=20, adjust=False).mean()
     sma50_s = df["Close"].rolling(50, min_periods=15).mean()
@@ -64,7 +64,6 @@ def _score_factor_a_trend(df: pd.DataFrame, atr14: float) -> Tuple[float, str, s
     dist_50_pct = ((close / sma50) - 1.0) * 100.0 if sma50 > 0 else 0.0
     dist_200_pct = ((close / sma200) - 1.0) * 100.0 if sma200 > 0 else 0.0
 
-    # Prior 20-day structural support and 60-day neckline (excluding current bar to avoid look-ahead)
     prior_df = df.iloc[:-1] if len(df) > 2 else df
     support_20d = float(prior_df["Low"].iloc[-min(20, len(prior_df)) :].min())
     support_60d = float(prior_df["Low"].iloc[-min(60, len(prior_df)) :].min())
@@ -72,11 +71,9 @@ def _score_factor_a_trend(df: pd.DataFrame, atr14: float) -> Tuple[float, str, s
     high_60d = float(prior_df["High"].iloc[-min(60, len(prior_df)) :].max())
     swing_high_5d = float(prior_df["High"].iloc[-min(5, len(prior_df)) :].max())
 
-    # Pattern detection
     support_broken = close < support_20d
     near_breakdown = (not support_broken) and (close <= support_20d + 0.65 * atr14)
 
-    # Double Top / Lower High Topping structure over last 40 bars
     win40 = df.iloc[-min(45, len(df)) :]
     mid_idx = len(win40) // 2
     h1 = float(win40["High"].iloc[:mid_idx].max()) if mid_idx > 2 else high_60d
@@ -84,7 +81,6 @@ def _score_factor_a_trend(df: pd.DataFrame, atr14: float) -> Tuple[float, str, s
     neckline = float(win40["Low"].iloc[max(0, mid_idx - 5) : min(len(win40), mid_idx + 6)].min())
     topping_pattern = (h2 <= h1 * 1.02) and (close < neckline or close < sma50)
 
-    # Failed Breakout / Bull Trap in last 10 bars
     recent_high_10d = float(df["High"].iloc[-min(10, len(df)) :].max())
     prior_res = float(df["High"].iloc[-min(55, len(df)) : -min(10, len(df))].max()) if len(df) > 20 else high_60d
     failed_breakout = (recent_high_10d > prior_res * 1.005) and (close < prior_res * 0.985)
@@ -104,32 +100,30 @@ def _score_factor_a_trend(df: pd.DataFrame, atr14: float) -> Tuple[float, str, s
     patterns = []
     if support_broken:
         score += 24.0
-        patterns.append(f"20D Support Breakdown (<${support_20d:.2f})")
+        patterns.append(f"跌破 20D 關鍵支撐 (<${support_20d:.2f})")
     elif near_breakdown:
         score += 14.0
-        patterns.append(f"Testing 20D Neckline (${support_20d:.2f})")
+        patterns.append(f"逼近測試 20D 頸線支撐 (${support_20d:.2f})")
 
     if topping_pattern:
         score += 15.0
-        patterns.append("Lower-High / Double-Top Structure")
+        patterns.append("頭部結構形成 (Lower-High / 雙頂破線)")
     if failed_breakout:
         score += 12.0
-        patterns.append("Failed Breakout (Bull Trap)")
+        patterns.append("假突破誘多破位 (Failed Breakout)")
 
-    # Overextension penalty if stretched > 3.0 ATR below 20EMA
     overextended = dist_20_atr < -3.0
     if overextended:
         score -= 15.0
-        patterns.append(f"Short-Term Overextended ({dist_20_atr:.1f}x ATR vs 20EMA)")
+        patterns.append(f"短線負乖離過大 ({dist_20_atr:.1f}x ATR vs 20EMA，防追空扣分)")
 
     score = float(np.clip(score, 0.0, 100.0))
-    pat_str = ", ".join(patterns) if patterns else "No Structural Breakdown Confirmed"
+    pat_str = "、".join(patterns) if patterns else "尚未出現結構性破位形態"
     trend_status = (
-        f"Score {score:.0f}/100 | Close ${close:.2f} vs 20EMA ${ema20:.2f} ({dist_20_atr:+.1f} ATR), "
-        f"50DMA ${sma50:.2f} ({dist_50_pct:+.1f}%), 200DMA ${sma200:.2f} ({dist_200_pct:+.1f}%) | {pat_str}"
+        f"趨勢破位評分 {score:.0f}/100（越高越有利空方）｜收盤 ${close:.2f} vs 20EMA ${ema20:.2f} ({dist_20_atr:+.1f} ATR)、"
+        f"50DMA ${sma50:.2f} ({dist_50_pct:+.1f}%)、200DMA ${sma200:.2f} ({dist_200_pct:+.1f}%)｜{pat_str}"
     )
 
-    # Momentum calculations (RSI & MACD)
     rsi_s = compute_rsi(df["Close"], 14)
     rsi14 = float(rsi_s.iloc[-1])
     ema12 = df["Close"].ewm(span=12, adjust=False).mean()
@@ -139,13 +133,26 @@ def _score_factor_a_trend(df: pd.DataFrame, atr14: float) -> Tuple[float, str, s
     macd_hist = float((macd_line - sig_line).iloc[-1])
     macd_val = float(macd_line.iloc[-1])
 
-    # RSI Bearish Divergence check
-    rsi_div = (h2 >= h1 * 0.99) and (float(rsi_s.iloc[-min(15, len(rsi_s)) :].max()) < float(rsi_s.iloc[-min(45, len(rsi_s)) : -min(15, len(rsi_s))].max()) - 4.0) if len(rsi_s) > 30 else False
+    rsi_div = (
+        (h2 >= h1 * 0.99)
+        and (
+            float(rsi_s.iloc[-min(15, len(rsi_s)) :].max())
+            < float(rsi_s.iloc[-min(45, len(rsi_s)) : -min(15, len(rsi_s))].max()) - 4.0
+        )
+        if len(rsi_s) > 30
+        else False
+    )
     mom_status = (
         f"RSI(14): {rsi14:.1f} "
-        + ("[OVERSOLD <30 - Bounce Risk]" if rsi14 < 30 else "[Bearish Zone 32-52]" if 32 <= rsi14 <= 52 else "[Neutral/High]")
-        + f" | MACD: {macd_val:.2f} (Hist {macd_hist:+.2f})"
-        + (" | RSI Bearish Divergence Detected" if rsi_div else "")
+        + (
+            "【超賣區 <30 — 提防多方技術性反彈，不宜追空】"
+            if rsi14 < 30
+            else "【空方優勢動能帶 32–52（有利空方）】"
+            if 32 <= rsi14 <= 52
+            else "【中性偏強區】"
+        )
+        + f"｜MACD: {macd_val:.2f} (柱狀體 Hist {macd_hist:+.2f})"
+        + ("｜偵測到 RSI 熊市頂背離" if rsi_div else "")
     )
 
     metrics = {
@@ -175,7 +182,7 @@ def _score_factor_b_rs(
     sector_etf: str,
     tech_metrics: Dict[str, Any],
 ) -> Tuple[float, str, Dict[str, Any]]:
-    """Factor B: Relative Weakness & Momentum (15% weight)."""
+    """Factor B: Relative Weakness & Momentum (15% weight, 分數越高代表相對越弱勢=越有利空方)."""
     close = df["Close"]
     ret_20d = ((float(close.iloc[-1]) / float(close.iloc[-min(21, len(close))])) - 1.0) * 100.0
     spy_ret_20d = (
@@ -192,7 +199,6 @@ def _score_factor_b_rs(
     alpha_vs_spy = ret_20d - spy_ret_20d
     alpha_vs_sec = ret_20d - sec_ret_20d
 
-    # Downside Beta Asymmetry (60D)
     aligned = pd.DataFrame({"stock": close.pct_change(), "spy": spy_df["Close"].pct_change()}).dropna().iloc[-60:]
     if len(aligned) >= 20:
         down_days = aligned[aligned["spy"] < 0]
@@ -211,7 +217,6 @@ def _score_factor_b_rs(
     else:
         beta_down, beta_up, beta_asym = 1.0, 1.0, 1.0
 
-    # Leading new low vs SPY
     spy_above_20d_low = (
         float(spy_df["Close"].iloc[-1]) > float(spy_df["Low"].iloc[-min(20, len(spy_df)) :].min()) * 1.015
         if not spy_df.empty
@@ -242,7 +247,6 @@ def _score_factor_b_rs(
     elif beta_down > 1.0:
         score += 10.0
 
-    # Momentum contribution (RSI + MACD + Divergence)
     rsi14 = tech_metrics["rsi14"]
     if 30.0 <= rsi14 <= 50.0:
         score += 10.0
@@ -253,9 +257,9 @@ def _score_factor_b_rs(
 
     score = float(np.clip(score, 0.0, 100.0))
     status = (
-        f"Score {score:.0f}/100 | 20D Rel vs SPY: {alpha_vs_spy:+.1f}%, vs {sector_etf}: {alpha_vs_sec:+.1f}% | "
-        f"Downside Beta: {beta_down:.2f} (Asym {beta_asym:.2f}x)"
-        + (" | Leading New Low vs SPY" if new_low_ahead_of_spy else "")
+        f"相對弱勢評分 {score:.0f}/100（越高越有利空方）｜20D 超額報酬 vs SPY: {alpha_vs_spy:+.1f}%、vs {sector_etf}: {alpha_vs_sec:+.1f}%｜"
+        f"下行 Beta: {beta_down:.2f} (跟跌不跟漲不對稱比 {beta_asym:.2f}x)"
+        + ("｜領先大盤破底 (Leading New Low)" if new_low_ahead_of_spy else "")
     )
     return score, status, {
         "ret_20d_pct": round(ret_20d, 2),
@@ -268,9 +272,8 @@ def _score_factor_b_rs(
 
 
 def _score_factor_c_volume(df: pd.DataFrame) -> Tuple[float, str, Dict[str, Any]]:
-    """Factor C: Volume & Institutional Distribution (15% weight)."""
+    """Factor C: Volume & Institutional Distribution (15% weight, 分數越高代表機構派發越重=越有利空方)."""
     vol = df["Volume"]
-    close = df["Close"]
     vol_ma20 = float(vol.rolling(20, min_periods=5).mean().iloc[-1])
     rel_vol_today = float(vol.iloc[-1]) / max(1.0, vol_ma20)
 
@@ -284,7 +287,6 @@ def _score_factor_c_volume(df: pd.DataFrame) -> Tuple[float, str, Dict[str, Any]
 
     dist_days_25d = _calc_distribution_days(df, window=25, drop_thresh=-0.01)
 
-    # 20D Chaikin Money Flow (CMF)
     hl_range = (df["High"] - df["Low"]).replace(0, np.nan)
     mfm = ((df["Close"] - df["Low"]) - (df["High"] - df["Close"])) / hl_range
     mfv = mfm.fillna(0.0) * df["Volume"]
@@ -306,8 +308,8 @@ def _score_factor_c_volume(df: pd.DataFrame) -> Tuple[float, str, Dict[str, Any]
 
     score = float(np.clip(score, 0.0, 100.0))
     status = (
-        f"Score {score:.0f}/100 | 25D Distribution Days: {dist_days_25d} | "
-        f"Down/Up Vol Ratio: {ud_vol_ratio:.2f}x | RelVol Today: {rel_vol_today:.2f}x | CMF(20): {cmf20:+.2f}"
+        f"籌碼派發評分 {score:.0f}/100（越高越有利空方）｜近25日機構派發日: {dist_days_25d} 天｜"
+        f"下跌/上漲均量比: {ud_vol_ratio:.2f}x｜今日相對量能: {rel_vol_today:.2f}x｜CMF(20) 資金流: {cmf20:+.2f}"
     )
     return score, status, {
         "vol_ma20": round(vol_ma20, 0),
@@ -321,7 +323,7 @@ def _score_factor_c_volume(df: pd.DataFrame) -> Tuple[float, str, Dict[str, Any]
 def _score_factor_d_fundamental_catalyst(
     tdata: TickerMarketData,
 ) -> Tuple[float, float, str, bool]:
-    """Factor D: Fundamental & Catalyst Risk (25% weight) + CATALYST_RISK_SCORE."""
+    """Factor D: Fundamental & Catalyst Risk (25% weight, 基本面脆弱分越高越有利空方；二元事件分數過高則禁止新開空單)."""
     fund_pts = 0.0
     avail_checks = 0
     notes = []
@@ -331,83 +333,85 @@ def _score_factor_d_fundamental_catalyst(
         rg = tdata.revenue_growth_yoy * 100.0
         if rg < 0:
             fund_pts += 25.0
-            notes.append(f"Rev contraction ({rg:+.1f}% YoY)")
+            notes.append(f"營收衰退 ({rg:+.1f}% YoY)")
         elif rg < 8.0:
             fund_pts += 14.0
-            notes.append(f"Slow Rev growth ({rg:+.1f}% YoY)")
+            notes.append(f"營收成長放緩 ({rg:+.1f}% YoY)")
         else:
-            notes.append(f"Rev growth {rg:+.1f}% YoY")
+            notes.append(f"營收成長 {rg:+.1f}% YoY")
     else:
-        notes.append(f"Rev Growth: {DATA_UNAVAILABLE}")
+        notes.append(f"營收成長: {DATA_UNAVAILABLE}")
 
     if tdata.operating_margin is not None:
         avail_checks += 1
         om = tdata.operating_margin * 100.0
         if om < 0:
             fund_pts += 25.0
-            notes.append(f"Negative OpMargin ({om:.1f}%)")
+            notes.append(f"營業利益率為負 ({om:.1f}%)")
         elif om < 8.0:
             fund_pts += 12.0
-            notes.append(f"Thin OpMargin ({om:.1f}%)")
+            notes.append(f"營業利益率偏低 ({om:.1f}%)")
         else:
-            notes.append(f"OpMargin {om:.1f}%")
+            notes.append(f"營業利益率 {om:.1f}%")
     else:
-        notes.append(f"OpMargin: {DATA_UNAVAILABLE}")
+        notes.append(f"營業利益率: {DATA_UNAVAILABLE}")
 
     if tdata.free_cash_flow is not None:
         avail_checks += 1
         if tdata.free_cash_flow < 0:
             fund_pts += 22.0
-            notes.append("Negative FCF (Cash Burn)")
+            notes.append("自由現金流為負 (Negative FCF / 燒錢)")
         else:
-            notes.append("FCF Positive")
+            notes.append("自由現金流為正")
     else:
-        notes.append(f"FCF: {DATA_UNAVAILABLE}")
+        notes.append(f"自由現金流: {DATA_UNAVAILABLE}")
 
-    # Valuation check
     val_mult = tdata.enterprise_to_revenue or tdata.price_to_sales
     if val_mult is not None or tdata.forward_pe is not None:
         avail_checks += 1
         if (val_mult is not None and val_mult > 12.0) or (tdata.forward_pe is not None and tdata.forward_pe > 45.0):
             fund_pts += 20.0
             notes.append(
-                f"Stretched Valuation (EV/Rev {val_mult:.1f}x)" if val_mult else f"High Fwd P/E ({tdata.forward_pe:.1f}x)"
+                f"高估值脆弱 (EV/Rev {val_mult:.1f}x)" if val_mult else f"高預估本益比 (Fwd P/E {tdata.forward_pe:.1f}x)"
             )
         elif val_mult is not None and val_mult > 6.0:
             fund_pts += 10.0
 
-    # Catalyst Risk Score (0-100)
     catalyst_score = 25.0
     earnings_red_warning = False
     if tdata.days_to_earnings is not None:
         if tdata.days_to_earnings <= 3:
             earnings_red_warning = True
             catalyst_score = 95.0
-            notes.append(f"RED WARNING: EARNINGS IN {tdata.days_to_earnings} DAYS ({tdata.next_earnings_date})")
+            notes.append(f"【🔴 紅色警告：距離財報僅 {tdata.days_to_earnings} 天 ({tdata.next_earnings_date}) — 嚴防二元跳空風險】")
         elif tdata.days_to_earnings <= 7:
             catalyst_score = 65.0
-            notes.append(f"Earnings approaching in {tdata.days_to_earnings}d ({tdata.next_earnings_date})")
+            notes.append(f"財報臨近：{tdata.days_to_earnings} 天後公佈 ({tdata.next_earnings_date})")
         else:
-            notes.append(f"Next Earnings in {tdata.days_to_earnings}d")
+            notes.append(f"下次財報：{tdata.days_to_earnings} 天後")
     else:
-        notes.append(f"Earnings Calendar: {DATA_UNAVAILABLE}")
+        notes.append(f"財報日曆: {DATA_UNAVAILABLE}")
 
     if tdata.dilution_offering_flag:
         catalyst_score = min(100.0, catalyst_score + 30.0)
         fund_pts += 15.0
-        notes.append("Dilution/Shelf Offering Active")
+        notes.append("增發稀釋籌碼 (ATM/Shelf Offering)")
     if tdata.insider_net_selling_flag:
         catalyst_score = min(100.0, catalyst_score + 20.0)
         fund_pts += 10.0
-        notes.append("Insider Cluster Selling")
+        notes.append("內部人集群拋售 (Insider Selling)")
 
     if avail_checks == 0:
-        composite = 35.0  # Conservative neutral-low when fundamentals are unavailable
-        status = f"Score {composite:.0f}/100 ({INSUFFICIENT_DATA}) | " + " | ".join(notes)
+        composite = 35.0
+        status = f"基本面脆弱分 {composite:.0f}/100 ({INSUFFICIENT_DATA})｜" + "｜".join(notes)
     else:
         norm_fund = min(100.0, fund_pts * (4.0 / max(1, avail_checks)))
         composite = float(np.clip(0.75 * norm_fund + 0.25 * min(70.0, catalyst_score), 0.0, 100.0))
-        status = f"Score {composite:.0f}/100 (Catalyst Risk: {catalyst_score:.0f}/100) | " + " | ".join(notes)
+        status = (
+            f"基本面脆弱評分 {composite:.0f}/100（越高越有利空方）｜"
+            f"事件風險分 {catalyst_score:.0f}/100（>80 代表二元跳空風險極高，不利新空單）｜"
+            + "｜".join(notes)
+        )
 
     return round(composite, 1), round(catalyst_score, 1), status, earnings_red_warning
 
@@ -420,10 +424,9 @@ def _score_factor_e_squeeze_and_options(
     """Factor E: Short Squeeze & Options Risk (20% weight) + independent SQUEEZE_RISK_SCORE."""
     notes = []
 
-    # 1. Calculate SQUEEZE_RISK_SCORE (0-100, higher = MORE DANGEROUS to short)
+    # 1. SQUEEZE_RISK_SCORE (0-100: ⚠️ 分數越高代表軋空風險越高 = 越不利空方 / 易被多頭逼空！)
     si_pct = tdata.short_pct_float * 100.0 if tdata.short_pct_float is not None else None
     if si_pct is not None and si_pct > 100.0:
-        # Handle cases where provider already scaled by 100
         si_pct = tdata.short_pct_float
 
     if si_pct is not None:
@@ -435,28 +438,27 @@ def _score_factor_e_squeeze_and_options(
             si_sub = 45.0
         else:
             si_sub = 15.0
-        notes.append(f"SI Float: {si_pct:.1f}%")
+        notes.append(f"SI% 佔流通盤: {si_pct:.1f}%")
     else:
         si_sub = 35.0
-        notes.append(f"SI% Float: {DATA_UNAVAILABLE}")
+        notes.append(f"SI% 佔流通盤: {DATA_UNAVAILABLE}")
 
     if tdata.days_to_cover is not None:
         dtc = tdata.days_to_cover
         dtc_sub = min(100.0, max(10.0, dtc * 12.5))
-        notes.append(f"Days to Cover: {dtc:.1f}d")
+        notes.append(f"回補天數 (Days to Cover): {dtc:.1f}天")
     else:
         dtc_sub = 30.0
-        notes.append(f"DTC: {DATA_UNAVAILABLE}")
+        notes.append(f"回補天數: {DATA_UNAVAILABLE}")
 
     if tdata.borrow_fee_rate_pct is not None:
         bf = tdata.borrow_fee_rate_pct
         bf_sub = 95.0 if bf >= 15.0 else (70.0 if bf >= 5.0 else (40.0 if bf >= 2.0 else 10.0))
-        notes.append(f"Borrow Fee: {bf:.2f}%")
+        notes.append(f"借券費率 (Borrow Fee): {bf:.2f}%")
     else:
         bf_sub = 25.0
-        notes.append(f"Borrow Fee: {DATA_UNAVAILABLE}")
+        notes.append(f"借券費率: {DATA_UNAVAILABLE}")
 
-    # Price upward thrust check (breakout above 20EMA or +6% surge in 3 days)
     ret_3d = ((float(df["Close"].iloc[-1]) / float(df["Close"].iloc[-min(4, len(df))])) - 1.0) * 100.0
     price_above_20ema = float(df["Close"].iloc[-1]) > tech_metrics["ema20"]
     thrust_sub = 85.0 if (ret_3d > 6.0 and price_above_20ema) else (45.0 if price_above_20ema else 10.0)
@@ -468,11 +470,11 @@ def _score_factor_e_squeeze_and_options(
         or ((tdata.borrow_fee_rate_pct or 0.0) >= 12.0)
     )
 
-    # 2. Derivatives Bearish Flow Score (0-100, higher = stronger bearish options flow & safe to short)
+    # 2. Derivatives Bearish Flow Score (0-100: 分數越高代表期權空方訊號越強且無軋空 = 越有利空方)
     deriv_score = 45.0
     if tdata.put_call_vol_ratio is not None:
         pcr = tdata.put_call_vol_ratio
-        notes.append(f"Opt P/C Vol: {pcr:.2f}")
+        notes.append(f"期權 Put/Call 量比: {pcr:.2f}")
         if pcr >= 1.30:
             deriv_score += 25.0
         elif pcr >= 1.00:
@@ -480,31 +482,30 @@ def _score_factor_e_squeeze_and_options(
         elif pcr < 0.65:
             deriv_score -= 10.0
     else:
-        notes.append(f"Opt P/C Ratio: {DATA_UNAVAILABLE}")
+        notes.append(f"期權 P/C 量比: {DATA_UNAVAILABLE}")
 
     if tdata.unusual_otm_put_flag:
         deriv_score += 18.0
-        notes.append("Unusual OTM Put Buying")
+        notes.append("異常價外賣權買入 (OTM Put Buying)")
     if tdata.unusual_call_selling_flag:
         deriv_score += 12.0
-        notes.append("Heavy ATM Call Supply")
+        notes.append("上方買權賣壓沉重 (ATM Call Selling)")
 
     if tdata.gamma_exposure_regime is not None:
         notes.append(f"GEX: {tdata.gamma_exposure_regime}")
     else:
         notes.append(f"GEX: {DATA_UNAVAILABLE}")
 
-    # Penalize Factor E heavily if Squeeze Risk is elevated
     if squeeze_warning:
         deriv_score = max(5.0, deriv_score - 35.0)
-        notes.append("[SQUEEZE WARNING ACTIVE]")
+        notes.append("【⚠️ 高軋空警戒觸發】")
 
     deriv_score = float(np.clip(deriv_score, 0.0, 100.0))
     status = (
-        f"Squeeze Risk {squeeze_risk_score:.0f}/100 "
-        + ("[HIGH SQUEEZE DANGER]" if squeeze_warning else "[Controlled]")
-        + f" | Options Bearish Score {deriv_score:.0f}/100 | "
-        + " | ".join(notes)
+        f"軋空風險評分 {squeeze_risk_score:.0f}/100（⚠️ 分數越高代表越易被多方軋空，越不利空方；越低越安全）"
+        + ("【高軋空危險】" if squeeze_warning else "【風險可控】")
+        + f"｜期權空方籌碼分 {deriv_score:.0f}/100（越高越有利空方）｜"
+        + "｜".join(notes)
     )
     return round(deriv_score, 1), round(squeeze_risk_score, 1), status, squeeze_warning
 

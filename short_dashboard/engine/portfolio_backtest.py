@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
 
 from .data_provider import MarketDataProvider
 from .models import ExecutionAction, SignalRating, StockShortEvaluation
-from .screener import compute_atr, compute_rsi
+from .screener import compute_rsi
 
 
 @dataclass
@@ -75,7 +75,6 @@ def compute_portfolio_risk(
         avg_corr = 0.0
         n_eff = float(n)
 
-    # Identify high-correlation clusters (rho >= 0.65)
     clusters: List[Dict[str, Any]] = []
     cols = list(corr_df.columns)
     for i in range(len(cols)):
@@ -86,12 +85,11 @@ def compute_portfolio_risk(
                     {
                         "pair": f"{cols[i]} / {cols[j]}",
                         "correlation_60d": round(rho, 2),
-                        "warning": "HIGH CO-MOVEMENT CLUSTER" if rho >= 0.75 else "MODERATE CLUSTER",
+                        "warning": "高度共線性同溫層集群（齊漲齊跌風險高）" if rho >= 0.75 else "中度相關集群",
                     }
                 )
     clusters.sort(key=lambda x: x["correlation_60d"], reverse=True)
 
-    # Sector exposure aggregation
     sector_notional: Dict[str, float] = {}
     total_notional = 0.0
     weighted_beta_notional = 0.0
@@ -106,7 +104,7 @@ def compute_portfolio_risk(
     beta_exp_pct = (weighted_beta_notional / account_size) * 100.0
     sector_exp_pct = {k: round((v / account_size) * 100.0, 1) for k, v in sector_notional.items()}
 
-    # Correlated Short Risk Score (0-100)
+    # Correlated Short Risk Score (0-100: ⚠️ 分數越高代表組合共線性風險越高，越容易被同步軋空，不利空方組合)
     max_sec_pct = max(sector_exp_pct.values()) if sector_exp_pct else 0.0
     diversity_loss = 1.0 - (n_eff / max(1.0, float(n)))
     corr_risk_score = float(
@@ -122,17 +120,17 @@ def compute_portfolio_risk(
     warnings: List[str] = []
     if n >= 3 and n_eff < n * 0.55:
         warnings.append(
-            f"CORRELATED SHORT RISK WARNING: {n} nominal shorts behave like only {n_eff:.2f} independent positions (Avg 60D Corr {avg_corr:.2f})."
+            f"組合共線性警告 (CORRELATED SHORT RISK)：名目上 {n} 檔空方候選股，實際僅相當於 {n_eff:.2f} 筆獨立部位（60D 平均相關係數 {avg_corr:.2f}），切勿視為獨立風險重複重倉！"
         )
     for sec, pct in sector_exp_pct.items():
         if pct > 25.0:
             warnings.append(
-                f"SECTOR CONCENTRATION BREACH: {sec} short exposure is {pct:.1f}% (Cap: 25.0%). Avoid stacking correlated sector bets."
+                f"單一板塊集中度超標：{sec} 板塊空頭曝險達 {pct:.1f}%（風控上限 25.0%），請避免同時堆疊同產業空單。"
             )
     if clusters:
         top_c = clusters[0]
         warnings.append(
-            f"Top Correlated Pair: {top_c['pair']} (60D rho = {top_c['correlation_60d']:.2f}) — Apply correlation sizing haircut."
+            f"最高共線性股票對：{top_c['pair']} (60D 相關係數 ρ = {top_c['correlation_60d']:.2f}) — 系統已自動啟動部位縮減折價。"
         )
 
     corr_dict = {
@@ -162,12 +160,6 @@ def run_walk_forward_backtest(
     slippage_bps: float = 10.0,
     assumed_borrow_fee_annual_pct: float = 2.0,
 ) -> Dict[str, Any]:
-    """Bias-free point-in-time historical signal backtester.
-    - Signals are evaluated strictly at bar[t] close using only data up to bar[t].
-    - Entry occurs at bar[t+1] Open (with slippage deduction).
-    - Dynamic Stop-Loss = Entry + 1.75 * ATR14[t]; Target 1 = Entry - 2.0 * Risk; Max hold = 15 bars.
-    """
-    spy_df = provider.get_ohlcv("SPY")
     trades: List[Dict[str, Any]] = []
 
     for ticker in tickers:
@@ -208,7 +200,6 @@ def run_walk_forward_backtest(
             v_t = float(vol_s.iloc[t])
             vma_t = max(1.0, float(vol_ma20.iloc[t]))
 
-            # Point-in-time technical score at bar t
             score_t = 0.0
             if c_t < e20_t:
                 score_t += 22.0
@@ -223,7 +214,6 @@ def run_walk_forward_backtest(
             if 32.0 <= rsi_t <= 52.0:
                 score_t += 10.0
 
-            # Trigger check at bar t: Breakdown or Failed Bounce at 20EMA
             breakdown_trig = (c_t < sup_t) and (v_t >= 1.25 * vma_t) and (rsi_t >= 30.0)
             failed_bounce_trig = (
                 (c_t < s50_t)
@@ -242,37 +232,35 @@ def run_walk_forward_backtest(
                 else ("A" if score_t >= 72 else ("B" if score_t >= 58 else "C"))
             )
 
-            # Execute at t+1 Open (Strict No Look-Ahead Bias)
             raw_entry = float(open_s.iloc[t + 1])
             slip_factor = slippage_bps / 10_000.0
-            entry_px = raw_entry * (1.0 - slip_factor)  # Short fill slightly lower due to slippage
+            entry_px = raw_entry * (1.0 - slip_factor)
             risk_per_sh = 1.75 * atr_t
             stop_px = entry_px + risk_per_sh
             target_px = entry_px - 2.0 * risk_per_sh
 
             exit_px = float(close.iloc[min(len(df) - 1, t + 12)])
             exit_idx = min(len(df) - 1, t + 12)
-            exit_reason = "Time Stop (12d)"
+            exit_reason = "時間停損出場 (12日)"
 
             for k in range(t + 1, min(len(df), t + 13)):
                 hi_k = float(high_s.iloc[k])
                 lo_k = float(low_s.iloc[k])
                 cl_k = float(close.iloc[k])
-                # Conservative intrabar assumption: check Stop before Target
                 if hi_k >= stop_px:
                     exit_px = stop_px * (1.0 + slip_factor)
                     exit_idx = k
-                    exit_reason = "ATR Stop-Loss Hit"
+                    exit_reason = "觸發 ATR 動態停損"
                     break
                 if lo_k <= target_px:
                     exit_px = target_px * (1.0 + slip_factor)
                     exit_idx = k
-                    exit_reason = "2.0R Target Reached"
+                    exit_reason = "達標 +2.0R 停利"
                     break
                 if k > t + 2 and cl_k > float(ema20.iloc[k]) and cl_k > float(sma50.iloc[k]):
                     exit_px = cl_k * (1.0 + slip_factor)
                     exit_idx = k
-                    exit_reason = "MA Reclaim Exit"
+                    exit_reason = "重新站回均線平倉"
                     break
 
             hold_days = max(1, exit_idx - (t + 1) + 1)
@@ -291,7 +279,7 @@ def run_walk_forward_backtest(
                     "exit_date": str(df.index[exit_idx].date()),
                     "grade": grade,
                     "score": round(score_t, 1),
-                    "trigger_type": "Breakdown" if breakdown_trig else "Failed Bounce",
+                    "trigger_type": "帶量破支撐" if breakdown_trig else "20EMA反抽受阻",
                     "entry_price": round(entry_px, 2),
                     "exit_price": round(exit_px, 2),
                     "holding_days": hold_days,
@@ -324,7 +312,6 @@ def run_walk_forward_backtest(
         std_r = float(np.std(rets)) if len(rets) > 1 else 1.0
         sharpe = float((np.mean(rets) / max(0.01, std_r)) * np.sqrt(min(50, len(rets))))
 
-        # Cumulative equity curve assuming 1.5% risk per trade
         eq = np.cumprod(1.0 + (rs * 0.0075))
         peak = np.maximum.accumulate(eq)
         dd = ((eq - peak) / peak) * 100.0
@@ -348,13 +335,13 @@ def run_walk_forward_backtest(
 
     return {
         "methodology": (
-            "Walk-Forward Point-in-Time Backtest | Signal at Close[t], Fill at Open[t+1] | "
-            f"{slippage_bps:.0f} bps round-trip slippage + {assumed_borrow_fee_annual_pct:.1f}%/yr borrow carry deducted"
+            f"無前視偏誤滾動回測｜訊號於第 t 日收盤確認，統一於 t+1 日開盤進場｜"
+            f"已扣除雙邊滑價 {slippage_bps:.0f} bps 與年化 {assumed_borrow_fee_annual_pct:.1f}% 借券成本"
         ),
         "bias_safeguards": [
-            "No Look-Ahead Bias: Support levels, MAs, and ATR computed strictly on bars <= t; entries at Open[t+1].",
-            "Intrabar Conservatism: Stop-Loss evaluated prior to Target on ambiguous bars.",
-            "Universe Note: Tested on active watchlist snapshot; historical delisted/acquired names require point-in-time CRSP/Polygon constituent feed.",
+            "防範前視偏誤 (No Look-Ahead Bias)：支撐價、均線與 ATR 僅使用 <= t 日數據，進場價為 t+1 日開盤價。",
+            "日內保守原則：若同一根 K 線同時觸及停損與停利，優先判定觸發停損。",
+            "僅 A+ 與 A 級訊號（高空方評分）允許列入可執行名單 (Actionable Short List)。",
         ],
         "actionable_a_plus_a_summary": _summarize_subset(actionable_trades),
         "all_signals_summary": _summarize_subset(trades),

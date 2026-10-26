@@ -1,183 +1,214 @@
 # DAILY SHORT MARKET REPORT (美股量化空方每日決策日報)
-**Generated At**: `2026-10-26 00:56:59`
+**產出時間**：`2026-10-26 13:08:38`
 
-## 1. Macro & Market Regime Filter (大盤環境與做空總閘門)
-- **MARKET REGIME SCORE**: **61.6 / 100** — `RISK-OFF (Bearish Regime / Active Short Window)`
-- **Short Book Policy**: SHORT BOOK OPEN for A+ and A rated setups. Full 1.0x risk sizing allowed. Pyramiding (ADD) enabled on Lower High confirmation if score > 70.
-- **Max Gross Short Exposure Cap**: `100%` | **Regime Risk Multiplier**: `1.00x`
-- **Market Breadth (`BREADTH_WEAKNESS_SCORE`)**: `32.8/100` — Breadth Weakness 32.8/100 | >50MA: 54.5%, >200MA: 70.5%, Net NH-NL: +6.8%, 10D A/D: 1.04
-- **Volatility Regime (`VOLATILITY_REGIME_SCORE`)**: `45.2/100` — Vol Score 45.2/100 | VIX: 19.45 (5D -2.7%), VIX/VIX3M: 0.95 [CONTANGO] | SPY P/C Ratio: 1.18 (Bearish Hedging Active)
+> **📊 評分方向性總覽（閱讀指南）**：
+> - **`MARKET REGIME SCORE` / `BREADTH WEAKNESS` / `VOLATILITY REGIME` / 個股 `SHORT SCORE` / 因子 A~D**：**分數越高（接近 100）代表越有利空方**；**分數越低（接近 0）代表越有利多方**。
+> - **`SQUEEZE RISK SCORE` (軋空風險) / `CATALYST RISK` (二元事件) / `CORRELATED SHORT RISK` (共線性風險)**：**⚠️ 分數越高代表做空危險度越高（不利空方 / 易被多方逼空），超過門檻時系統自動一票否決禁空！**
 
-### Benchmark Index Breakdown
-| Index | Close | 20EMA | 50SMA | 200SMA | 20D Ret | 25D Dist Days | Index Bear Score |
+## 1. 大盤總體環境監控 (Macro & Market Regime Filter)
+- **大盤環境評分 (`MARKET REGIME SCORE`)**：**61.6 / 100**（越高越有利空方，<=40 有利多方）— `RISK-OFF 空方環境（61–100分：有利空方 / 適合尋找空方 Setup）`
+- **空方部位操作準則**：【全面開放空方部位】指數均線破位且派發明顯（分數越高越有利空方），開放 A+ 與 A 級空單進場（1.0x 標準風險），若分數 > 70 且確認 Lower High 允許順勢加碼 (ADD)。
+- **總空頭曝險上限**：`100%`｜**大盤部位規模乘數**：`1.00x`
+- **市場寬度惡化評分 (`BREADTH WEAKNESS SCORE`)**：`32.8/100` — 寬度惡化評分 32.8/100（分數越高越有利空方，目前偏多方）｜高於 50MA 比例: 54.5%、高於 200MA 比例: 70.5%、52週新高減新低差: +6.8%、10日漲跌家數比 (A/D): 1.04
+- **波動與避險情緒 (`VOLATILITY REGIME SCORE`)**：`45.2/100` — 波動避險評分 45.2/100（分數越高代表恐慌升溫越有利空方）｜VIX: 19.45 (5日變化 -2.7%)、VIX/VIX3M 期限比: 0.95 【正價差 Contango】｜SPY Put/Call Ratio: 1.18（空方避險買盤積極）
+
+### 三大基準指數均線與派發日明細
+| 指數 | 收盤價 | 20EMA (位置) | 50SMA (位置) | 200SMA | 20日報酬 | 近25日派發天數 | 指數空方分 (越高越利空) |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| **SPY** | $759.97 | $768.83 (Below) | $767.81 (Below) | $727.01 | -1.48% | 7d | **79.0** |
-| **QQQ** | $704.40 | $727.11 (Below) | $725.81 (Below) | $677.30 | -5.39% | 7d | **79.0** |
-| **IWM** | $275.75 | $277.72 (Below) | $286.41 (Below) | $278.23 | -2.21% | 5d | **100.0** |
+| **SPY** | $759.97 | $768.83 (跌破利空) | $767.81 (跌破利空) | $727.01 | -1.48% | 7 天 | **79.0** |
+| **QQQ** | $704.40 | $727.11 (跌破利空) | $725.81 (跌破利空) | $677.30 | -5.39% | 7 天 | **79.0** |
+| **IWM** | $275.75 | $277.72 (跌破利空) | $286.41 (跌破利空) | $278.23 | -2.21% | 5 天 | **100.0** |
 
-## 2. Sector Relative Weakness Ranking (板塊弱勢排行)
-| Sector ETF | Close | 5D Ret | 20D Ret | 20D RS vs SPY | 25D Dist Days | Weakness Score |
+## 2. GICS 板塊相對弱勢排行 (Sector Weakness Ranking)
+| 板塊 ETF | 收盤價 | 5日報酬 | 20日報酬 | 20日相對 SPY 強弱 | 近25日派發日 | 板塊弱勢分 (越高越利空) |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
-| **SMH** | $527.20 | -2.33% | -13.08% | -11.60% | 11d | **114.5** |
-| **XLC** | $105.51 | -4.36% | -6.60% | -5.12% | 5d | **111.3** |
-| **XLI** | $164.62 | -1.87% | -3.41% | -1.93% | 8d | **104.2** |
-| **XLK** | $183.23 | -0.13% | -6.64% | -5.16% | 9d | **90.4** |
-| **XLY** | $113.10 | +0.57% | +2.30% | +3.78% | 5d | **69.7** |
-| **XLRE** | $42.57 | +0.97% | +2.43% | +3.91% | 11d | **59.4** |
+| **SMH** | $527.20 | -2.33% | -13.08% | -11.60% | 11 天 | **114.5** |
+| **XLC** | $105.51 | -4.36% | -6.60% | -5.12% | 5 天 | **111.3** |
+| **XLI** | $164.62 | -1.87% | -3.41% | -1.93% | 8 天 | **104.2** |
+| **XLK** | $183.23 | -0.13% | -6.64% | -5.16% | 9 天 | **90.4** |
+| **XLY** | $113.10 | +0.57% | +2.30% | +3.78% | 5 天 | **69.7** |
+| **XLRE** | $42.57 | +0.97% | +2.43% | +3.91% | 11 天 | **59.4** |
 
-## 3. Actionable Short List (A+ / A 級可執行空方候選池)
-> 僅包含通過安全濾網（無軋空警告、財報 > 3 天、評級 A/A+）之標的。
+## 3. 現在可執行做空清單 (Actionable Short List — 僅限 A+ / A 級且安全過關)
+> 必須同時滿足：`SHORT SCORE` 高分（有利空方）、評級達 `A+` 或 `A`、無軋空警報、且距離財報 > 3 天。
 
-*No stocks currently pass the strict A+/A Actionable Short safety gate.*
+| 代碼 | 空方總分 (越高越利空) | 評級 | 執行狀態 | 現價 | 動態停損 (ATR) | 目標價 1 | 風報比 | 空方勝率 | 信心水準 |
+| :--- | ---: | :---: | :---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **COIN** | **81.8** | `A` | `ENTRY` | $164.45 | $185.89 | $121.58 | 1:2.00 | 68.4% | 63.2% |
 
-## 4. Fundamentally / Structurally Bearish BUT Not Yet Actionable (看空但暫不適合做空)
-| Ticker | Short Score | Rating | Current State | Reason Not Actionable Today |
+## 4. 結構/基本面看空但「暫不適合進場」名單 (Fundamentally Bearish — Wait/Watch)
+| 代碼 | 空方總分 (越高越利空) | 評級 | 狀態 | 暫不進場原因與等待條件 |
 | :--- | ---: | :---: | :---: | :--- |
-| **COIN** | 82.2 | `A` | `WAIT` | WAIT — RED WARNING: Binary Earnings Event in 3d (Avoid New Short) |
-| **MARA** | 66.2 | `B` | `WATCH` | WATCH — Fundamentally/Technically Bearish but Short-Term Oversold (RSI 24.3); Wait for Bounce to 20EMA ($9.05) |
-| **RIVN** | 64.0 | `B` | `WAIT` | WAIT — RED WARNING: Binary Earnings Event in 3d (Avoid New Short) |
-| **MSTR** | 57.0 | `B` | `WAIT` | WAIT — RED WARNING: Binary Earnings Event in 3d (Avoid New Short) |
+| **MARA** | 66.2 | `B` | `WATCH` | WATCH — 雖然中期結構看空，但短線嚴重超賣 (RSI 24.3)，切勿低檔追空！等待反抽至 20EMA ($9.05) 受阻再進場 |
+| **RIVN** | 63.7 | `B` | `WATCH` | WATCH — 雖然中期結構看空，但短線嚴重超賣 (RSI 20.9)，切勿低檔追空！等待反抽至 20EMA ($13.37) 受阻再進場 |
+| **MSTR** | 56.7 | `B` | `WATCH` | WATCH — 【看空但暫不適合進場】基本面或技術面偏弱，惟尚未滿足進場 Trigger 或評級未達 A 級 |
 
-## 5. Short Squeeze Risk & Upcoming Binary Catalysts (軋空警告與事件日曆)
-- **Squeeze Watch — `MARA`**: Squeeze Risk 50/100 [Controlled] | Options Bearish Score 35/100 | SI Float: 29.8% | Days to Cover: 2.3d | Borrow Fee: DATA UNAVAILABLE | Opt P/C Vol: 0.28 | GEX: DATA UNAVAILABLE
-- **Squeeze Watch — `LCID`**: Squeeze Risk 68/100 [HIGH SQUEEZE DANGER] | Options Bearish Score 5/100 | SI Float: 57.2% | Days to Cover: 8.5d | Borrow Fee: DATA UNAVAILABLE | Opt P/C Vol: 0.39 | GEX: DATA UNAVAILABLE | [SQUEEZE WARNING ACTIVE]
-- **Catalyst Watch — `COIN`**: Score 70/100 (Catalyst Risk: 95/100) | Rev contraction (-17.3% YoY) | Negative OpMargin (-13.9%) | FCF Positive | Stretched Valuation (EV/Rev 6.8x) | RED WARNING: EARNINGS IN 3 DAYS (2026-10-29)
-- **Catalyst Watch — `MARA`**: Score 68/100 (Catalyst Risk: 25/100) | Rev contraction (-26.7% YoY) | Negative OpMargin (-265.2%) | Negative FCF (Cash Burn) | Next Earnings in 9d
-- **Catalyst Watch — `RIVN`**: Score 53/100 (Catalyst Risk: 95/100) | Rev growth +27.2% YoY | Negative OpMargin (-50.4%) | Negative FCF (Cash Burn) | RED WARNING: EARNINGS IN 3 DAYS (2026-10-29)
-- **Catalyst Watch — `MSTR`**: Score 78/100 (Catalyst Risk: 95/100) | Slow Rev growth (+6.9% YoY) | Negative OpMargin (-6808.1%) | Negative FCF (Cash Burn) | Stretched Valuation (EV/Rev 150.2x) | RED WARNING: EARNINGS IN 3 DAYS (2026-10-29)
-- **Catalyst Watch — `CVNA`**: Score 18/100 (Catalyst Risk: 95/100) | Rev growth +52.4% YoY | OpMargin 9.2% | FCF Positive | RED WARNING: EARNINGS IN 2 DAYS (2026-10-28)
-- **Catalyst Watch — `SNOW`**: Score 40/100 (Catalyst Risk: 25/100) | Rev growth +35.1% YoY | Negative OpMargin (-17.0%) | FCF Positive | Stretched Valuation (EV/Rev 21.2x) | Next Earnings in 37d
-- **Catalyst Watch — `NVDA`**: Score 21/100 (Catalyst Risk: 25/100) | Rev growth +105.9% YoY | OpMargin 66.2% | FCF Positive | Stretched Valuation (EV/Rev 16.7x) | Next Earnings in 22d
-- **Catalyst Watch — `SMCI`**: Score 23/100 (Catalyst Risk: 25/100) | Rev growth +93.2% YoY | OpMargin 13.4% | Negative FCF (Cash Burn) | Next Earnings in 8d
-- **Catalyst Watch — `AMD`**: Score 21/100 (Catalyst Risk: 25/100) | Rev growth +50.1% YoY | OpMargin 17.2% | FCF Positive | Stretched Valuation (EV/Rev 20.2x) | Next Earnings in 8d
-- **Catalyst Watch — `LCID`**: Score 42/100 (Catalyst Risk: 25/100) | Rev growth +56.2% YoY | Negative OpMargin (-261.0%) | Negative FCF (Cash Burn) | Next Earnings in 14d
-- **Catalyst Watch — `PLTR`**: Score 31/100 (Catalyst Risk: 65/100) | Rev growth +92.8% YoY | OpMargin 47.1% | FCF Positive | Stretched Valuation (EV/Rev 75.3x) | Earnings approaching in 7d (2026-11-02)
+## 5. 軋空風險監控與二元催化劑事件日曆 (Squeeze Risk & Catalyst Watch)
+- **軋空警戒 — `MARA`**：軋空風險評分 50/100（⚠️ 分數越高代表越易被多方軋空，越不利空方；越低越安全）【風險可控】｜期權空方籌碼分 35/100（越高越有利空方）｜SI% 佔流通盤: 29.8%｜回補天數 (Days to Cover): 2.3天｜借券費率: DATA UNAVAILABLE｜期權 Put/Call 量比: 0.28｜GEX: DATA UNAVAILABLE
+- **軋空警戒 — `RIVN`**：軋空風險評分 49/100（⚠️ 分數越高代表越易被多方軋空，越不利空方；越低越安全）【風險可控】｜期權空方籌碼分 35/100（越高越有利空方）｜SI% 佔流通盤: 14.9%｜回補天數 (Days to Cover): 8.0天｜借券費率: DATA UNAVAILABLE｜期權 Put/Call 量比: 0.31｜GEX: DATA UNAVAILABLE
+- **軋空警戒 — `CVNA`**：軋空風險評分 49/100（⚠️ 分數越高代表越易被多方軋空，越不利空方；越低越安全）【風險可控】｜期權空方籌碼分 45/100（越高越有利空方）｜SI% 佔流通盤: 12.6%｜回補天數 (Days to Cover): 9.2天｜借券費率: DATA UNAVAILABLE｜期權 Put/Call 量比: 0.93｜GEX: DATA UNAVAILABLE
+- **軋空警戒 — `LCID`**：軋空風險評分 68/100（⚠️ 分數越高代表越易被多方軋空，越不利空方；越低越安全）【高軋空危險】｜期權空方籌碼分 5/100（越高越有利空方）｜SI% 佔流通盤: 57.2%｜回補天數 (Days to Cover): 8.5天｜借券費率: DATA UNAVAILABLE｜期權 Put/Call 量比: 0.39｜GEX: DATA UNAVAILABLE｜【⚠️ 高軋空警戒觸發】
+- **基本面與催化劑 — `COIN`**：基本面脆弱評分 69/100（越高越有利空方）｜事件風險分 65/100（>80 代表二元跳空風險極高，不利新空單）｜營收衰退 (-17.3% YoY)｜營業利益率為負 (-13.9%)｜自由現金流為正｜高估值脆弱 (EV/Rev 6.8x)｜財報臨近：4 天後公佈 (2026-10-30)
+- **基本面與催化劑 — `MARA`**：基本面脆弱評分 68/100（越高越有利空方）｜事件風險分 25/100（>80 代表二元跳空風險極高，不利新空單）｜營收衰退 (-26.7% YoY)｜營業利益率為負 (-265.2%)｜自由現金流為負 (Negative FCF / 燒錢)｜下次財報：10 天後
+- **基本面與催化劑 — `RIVN`**：基本面脆弱評分 52/100（越高越有利空方）｜事件風險分 65/100（>80 代表二元跳空風險極高，不利新空單）｜營收成長 +27.2% YoY｜營業利益率為負 (-50.4%)｜自由現金流為負 (Negative FCF / 燒錢)｜財報臨近：4 天後公佈 (2026-10-30)
+- **基本面與催化劑 — `CVNA`**：基本面脆弱評分 18/100（越高越有利空方）｜事件風險分 95/100（>80 代表二元跳空風險極高，不利新空單）｜營收成長 +52.4% YoY｜營業利益率 9.2%｜自由現金流為正｜【🔴 紅色警告：距離財報僅 3 天 (2026-10-29) — 嚴防二元跳空風險】
+- **基本面與催化劑 — `MSTR`**：基本面脆弱評分 77/100（越高越有利空方）｜事件風險分 65/100（>80 代表二元跳空風險極高，不利新空單）｜營收成長放緩 (+6.9% YoY)｜營業利益率為負 (-6808.1%)｜自由現金流為負 (Negative FCF / 燒錢)｜高估值脆弱 (EV/Rev 150.2x)｜財報臨近：4 天後公佈 (2026-10-30)
+- **基本面與催化劑 — `SNOW`**：基本面脆弱評分 40/100（越高越有利空方）｜事件風險分 25/100（>80 代表二元跳空風險極高，不利新空單）｜營收成長 +35.1% YoY｜營業利益率為負 (-17.0%)｜自由現金流為正｜高估值脆弱 (EV/Rev 21.2x)｜下次財報：38 天後
+- **基本面與催化劑 — `NVDA`**：基本面脆弱評分 21/100（越高越有利空方）｜事件風險分 25/100（>80 代表二元跳空風險極高，不利新空單）｜營收成長 +105.9% YoY｜營業利益率 66.2%｜自由現金流為正｜高估值脆弱 (EV/Rev 16.7x)｜下次財報：23 天後
+- **基本面與催化劑 — `SMCI`**：基本面脆弱評分 23/100（越高越有利空方）｜事件風險分 25/100（>80 代表二元跳空風險極高，不利新空單）｜營收成長 +93.2% YoY｜營業利益率 13.4%｜自由現金流為負 (Negative FCF / 燒錢)｜下次財報：9 天後
+- **基本面與催化劑 — `AMD`**：基本面脆弱評分 21/100（越高越有利空方）｜事件風險分 25/100（>80 代表二元跳空風險極高，不利新空單）｜營收成長 +50.1% YoY｜營業利益率 17.2%｜自由現金流為正｜高估值脆弱 (EV/Rev 20.2x)｜下次財報：9 天後
+- **基本面與催化劑 — `LCID`**：基本面脆弱評分 42/100（越高越有利空方）｜事件風險分 25/100（>80 代表二元跳空風險極高，不利新空單）｜營收成長 +56.2% YoY｜營業利益率為負 (-261.0%)｜自由現金流為負 (Negative FCF / 燒錢)｜下次財報：15 天後
+- **基本面與催化劑 — `PLTR`**：基本面脆弱評分 21/100（越高越有利空方）｜事件風險分 25/100（>80 代表二元跳空風險極高，不利新空單）｜營收成長 +92.8% YoY｜營業利益率 47.1%｜自由現金流為正｜高估值脆弱 (EV/Rev 75.3x)｜下次財報：8 天後
 
-## 6. Portfolio-Level Correlated Short Risk (`CORRELATED_SHORT_RISK`)
-- **Correlated Short Risk Score**: `52.4/100`
-- **Nominal Candidates vs Effective Independent Bets ($N_{\text{eff}}$)**: `6` nominal $\rightarrow$ **`1.81` effective independent bets** (Avg 60D Pairwise Correlation: `0.46`)
-- **Gross Short Exposure (Suggested)**: `35.6%` (Beta-Adjusted: `119.3%`)
-  - ⚠️ CORRELATED SHORT RISK WARNING: 6 nominal shorts behave like only 1.81 independent positions (Avg 60D Corr 0.46).
-  - ⚠️ Top Correlated Pair: COIN / MSTR (60D rho = 0.87) — Apply correlation sizing haircut.
+## 6. 投資組合共線性風險 (`CORRELATED_SHORT_RISK`)
+- **組合共線性風險分**：`52.4/100`（⚠️ 分數越高代表空單越集中於同溫層，越不利組合風控）
+- **名目候選數 vs 有效獨立部位數 ($N_{\text{eff}}$)**：名目 `6` 檔 $\rightarrow$ **實際僅相當於 `1.81` 筆獨立部位**（60日平均兩兩相關係數：`0.46`）
+- **建議總空頭曝險**：`35.6%`（Beta 加權調整後：`119.3%`）
+  - ⚠️ 組合共線性警告 (CORRELATED SHORT RISK)：名目上 6 檔空方候選股，實際僅相當於 1.81 筆獨立部位（60D 平均相關係數 0.46），切勿視為獨立風險重複重倉！
+  - ⚠️ 最高共線性股票對：COIN / MSTR (60D 相關係數 ρ = 0.87) — 系統已自動啟動部位縮減折價。
 
-## 7. Standardized Stock Decision Cards (個股標準化決策輸出)
+## 7. 個股標準化決策輸出卡 (Standardized Stock Decision Cards)
 ```text
 ⸻
-TICKER: COIN
-SHORT SCORE: 82.2 / RATING: A
-MARKET REGIME: 61.6/100 — RISK-OFF (Bearish Regime / Active Short Window) | Breadth Weakness 33/100 | VIX 19.45 (VIX/VIX3M 0.95)
-SECTOR: Financial Services (XLF) | 20D Ret: +1.9% (vs SPY +3.4%) | Weakness Score: 49.5/100
-TREND: Score 94/100 | Close $164.45 vs 20EMA $176.94 (-1.3 ATR), 50DMA $179.55 (-8.4%), 200DMA $180.50 (-8.9%) | 20D Support Breakdown (<$165.80), Lower-High / Double-Top Structure
-MOMENTUM: RSI(14): 41.5 [Bearish Zone 32-52] | MACD: -3.45 (Hist -1.88)
-RELATIVE STRENGTH: Score 85/100 | 20D Rel vs SPY: -14.2%, vs XLF: -17.6% | Downside Beta: 3.23 (Asym 4.15x)
-VOLUME: Score 72/100 | 25D Distribution Days: 7 | Down/Up Vol Ratio: 1.02x | RelVol Today: 0.84x | CMF(20): -0.31
-FUNDAMENTAL & CATALYST: Score 70/100 (Catalyst Risk: 95/100) | Rev contraction (-17.3% YoY) | Negative OpMargin (-13.9%) | FCF Positive | Stretched Valuation (EV/Rev 6.8x) | RED WARNING: EARNINGS IN 3 DAYS (2026-10-29)
-SHORT SQUEEZE RISK: Squeeze Risk 32/100 [Controlled] | Options Bearish Score 88/100 | SI Float: 11.1% | Days to Cover: 2.5d | Borrow Fee: DATA UNAVAILABLE | Opt P/C Vol: 2.16 | Unusual OTM Put Buying | GEX: DATA UNAVAILABLE
+TICKER: COIN (Coinbase Global, Inc.)
+SHORT SCORE: 81.8 / RATING: A （分數越高代表越有利空方；>=70 為 A/A+ 級空方候選，<40 代表有利多方應避開做空）
+MARKET REGIME: 61.6/100（越高越有利空方）— RISK-OFF 空方環境（61–100分：有利空方 / 適合尋找空方 Setup）｜市場寬度惡化分 33/100｜VIX 19.45 (VIX/VIX3M 0.95)
+SECTOR: Financial Services (XLF)｜20D 報酬: +1.9% (對比 SPY 超額報酬 +3.4%)｜板塊弱勢評分: 49.5（越高越弱勢/越有利空方）
+TREND: 趨勢破位評分 94/100（越高越有利空方）｜收盤 $164.45 vs 20EMA $176.94 (-1.3 ATR)、50DMA $179.55 (-8.4%)、200DMA $180.50 (-8.9%)｜跌破 20D 關鍵支撐 (<$165.80)、頭部結構形成 (Lower-High / 雙頂破線)
+MOMENTUM: RSI(14): 41.5 【空方優勢動能帶 32–52（有利空方）】｜MACD: -3.45 (柱狀體 Hist -1.88)
+RELATIVE STRENGTH: 相對弱勢評分 85/100（越高越有利空方）｜20D 超額報酬 vs SPY: -14.2%、vs XLF: -17.6%｜下行 Beta: 3.23 (跟跌不跟漲不對稱比 4.15x)
+VOLUME: 籌碼派發評分 72/100（越高越有利空方）｜近25日機構派發日: 7 天｜下跌/上漲均量比: 1.02x｜今日相對量能: 0.84x｜CMF(20) 資金流: -0.31
+FUNDAMENTAL & CATALYST: 基本面脆弱評分 69/100（越高越有利空方）｜事件風險分 65/100（>80 代表二元跳空風險極高，不利新空單）｜營收衰退 (-17.3% YoY)｜營業利益率為負 (-13.9%)｜自由現金流為正｜高估值脆弱 (EV/Rev 6.8x)｜財報臨近：4 天後公佈 (2026-10-30)
+SHORT SQUEEZE RISK: 軋空風險評分 32/100（⚠️ 分數越高代表越易被多方軋空，越不利空方；越低越安全）【風險可控】｜期權空方籌碼分 88/100（越高越有利空方）｜SI% 佔流通盤: 11.1%｜回補天數 (Days to Cover): 2.5天｜借券費率: DATA UNAVAILABLE｜期權 Put/Call 量比: 2.16｜異常價外賣權買入 (OTM Put Buying)｜GEX: DATA UNAVAILABLE
 
-ENTRY ZONE: $163.63 – $176.94 (20EMA / 5D-VWAP Rejection Band)
-TRIGGER: CONFIRMED: Failed bounce / rejection at 20EMA ($176.94) & 5D-VWAP ($170.83) with break below prior low $166.73
-STOP: $185.89 (2.16x ATR14 ($9.94) above Entry / 5D Swing High $183.40 | Suggested Size: 34 sh / Max Risk $750)
+ENTRY ZONE: $163.63 – $176.94（20EMA / 5D-VWAP 反抽受阻壓力帶）
+TRIGGER: 【已觸發】弱勢反抽測試 20EMA ($176.94) 與 5D-VWAP ($170.83) 受阻回落，並跌破前日低點 $166.73 確認 Lower High
+STOP: $185.89（動態波動度停損 2.16x ATR14 ($9.94) 結合近5日反壓高點 $183.40｜建議部位: 34 股 / 單筆最大承受風險 $750）
 TARGET 1: $121.58 / TARGET 2: $89.43
-RISK / REWARD: 1 : 2.00 (Bearish Prob: 68.6%)
-CONFIDENCE: 63.4%
+RISK / REWARD: 1 : 2.00（空方勝率估計 Bearish Probability: 68.4%）
+CONFIDENCE: 63.2%（依資料完整度與因子共振度加權）
 
-ACTION: WAIT — RED WARNING: Binary Earnings Event in 3d (Avoid New Short)
-INVALIDATION: Daily close above $185.89 (Structural Stop / 20EMA + 0.5x ATR) or 50DMA reclaim ($179.55)
+ACTION: ENTRY — 【現在適合做空 Actionable Short】已滿足進場觸發條件 （評級 A，空方總分 81.8/100 越有利空方）
+INVALIDATION: 日線收盤重新站上 $185.89（結構停損價 / 20EMA + 0.5x ATR）或收復 50DMA ($179.55) 即視為空頭邏輯失效
 ⸻
 ```
 ```text
 ⸻
-TICKER: MARA
-SHORT SCORE: 66.2 / RATING: B
-MARKET REGIME: 61.6/100 — RISK-OFF (Bearish Regime / Active Short Window) | Breadth Weakness 33/100 | VIX 19.45 (VIX/VIX3M 0.95)
-SECTOR: Financial Services (XLF) | 20D Ret: +1.9% (vs SPY +3.4%) | Weakness Score: 49.5/100
-TREND: Score 87/100 | Close $7.02 vs 20EMA $9.05 (-3.2 ATR), 50DMA $10.64 (-34.0%), 200DMA $10.89 (-35.5%) | 20D Support Breakdown (<$7.11), Lower-High / Double-Top Structure, Short-Term Overextended (-3.2x ATR vs 20EMA)
-MOMENTUM: RSI(14): 24.3 [OVERSOLD <30 - Bounce Risk] | MACD: -1.16 (Hist -0.25)
-RELATIVE STRENGTH: Score 75/100 | 20D Rel vs SPY: -42.6%, vs XLF: -46.0% | Downside Beta: 3.09 (Asym 1.75x)
-VOLUME: Score 62/100 | 25D Distribution Days: 9 | Down/Up Vol Ratio: 0.88x | RelVol Today: 0.97x | CMF(20): -0.39
-FUNDAMENTAL & CATALYST: Score 68/100 (Catalyst Risk: 25/100) | Rev contraction (-26.7% YoY) | Negative OpMargin (-265.2%) | Negative FCF (Cash Burn) | Next Earnings in 9d
-SHORT SQUEEZE RISK: Squeeze Risk 50/100 [Controlled] | Options Bearish Score 35/100 | SI Float: 29.8% | Days to Cover: 2.3d | Borrow Fee: DATA UNAVAILABLE | Opt P/C Vol: 0.28 | GEX: DATA UNAVAILABLE
+TICKER: MARA (MARA Holdings, Inc.)
+SHORT SCORE: 66.2 / RATING: B （分數越高代表越有利空方；>=70 為 A/A+ 級空方候選，<40 代表有利多方應避開做空）
+MARKET REGIME: 61.6/100（越高越有利空方）— RISK-OFF 空方環境（61–100分：有利空方 / 適合尋找空方 Setup）｜市場寬度惡化分 33/100｜VIX 19.45 (VIX/VIX3M 0.95)
+SECTOR: Financial Services (XLF)｜20D 報酬: +1.9% (對比 SPY 超額報酬 +3.4%)｜板塊弱勢評分: 49.5（越高越弱勢/越有利空方）
+TREND: 趨勢破位評分 87/100（越高越有利空方）｜收盤 $7.02 vs 20EMA $9.05 (-3.2 ATR)、50DMA $10.64 (-34.0%)、200DMA $10.89 (-35.5%)｜跌破 20D 關鍵支撐 (<$7.11)、頭部結構形成 (Lower-High / 雙頂破線)、短線負乖離過大 (-3.2x ATR vs 20EMA，防追空扣分)
+MOMENTUM: RSI(14): 24.3 【超賣區 <30 — 提防多方技術性反彈，不宜追空】｜MACD: -1.16 (柱狀體 Hist -0.25)
+RELATIVE STRENGTH: 相對弱勢評分 75/100（越高越有利空方）｜20D 超額報酬 vs SPY: -42.6%、vs XLF: -46.0%｜下行 Beta: 3.09 (跟跌不跟漲不對稱比 1.75x)
+VOLUME: 籌碼派發評分 62/100（越高越有利空方）｜近25日機構派發日: 9 天｜下跌/上漲均量比: 0.88x｜今日相對量能: 0.97x｜CMF(20) 資金流: -0.39
+FUNDAMENTAL & CATALYST: 基本面脆弱評分 68/100（越高越有利空方）｜事件風險分 25/100（>80 代表二元跳空風險極高，不利新空單）｜營收衰退 (-26.7% YoY)｜營業利益率為負 (-265.2%)｜自由現金流為負 (Negative FCF / 燒錢)｜下次財報：10 天後
+SHORT SQUEEZE RISK: 軋空風險評分 50/100（⚠️ 分數越高代表越易被多方軋空，越不利空方；越低越安全）【風險可控】｜期權空方籌碼分 35/100（越高越有利空方）｜SI% 佔流通盤: 29.8%｜回補天數 (Days to Cover): 2.3天｜借券費率: DATA UNAVAILABLE｜期權 Put/Call 量比: 0.28｜GEX: DATA UNAVAILABLE
 
-ENTRY ZONE: Breakdown < $7.11 OR Weak Bounce into $7.31 – $9.15
-TRIGGER: Await break below $7.11 on >1.5x volume OR Failed Bounce rejection at 20EMA ($9.05) / VWAP ($7.47) with Lower High confirmation
-STOP: $8.56 (2.40x ATR14 ($0.64) above Entry / 5D Swing High $8.23 | Suggested Size: 0 sh / Max Risk $0)
+ENTRY ZONE: 跌破支撐 < $7.11 追空，或等待縮量反抽至 $7.31 – $9.15 壓力區
+TRIGGER: 等待帶量（>1.5x 均量）跌破 20D 支撐 $7.11，或反彈至 20EMA ($9.05) / VWAP ($7.47) 出現 Failed Bounce 轉弱訊號並確認 Lower High
+STOP: $8.56（動態波動度停損 2.40x ATR14 ($0.64) 結合近5日反壓高點 $8.23｜建議部位: 0 股 / 單筆最大承受風險 $0）
 TARGET 1: $3.95 / TARGET 2: $1.64
-RISK / REWARD: 1 : 2.00 (Bearish Prob: 51.8%)
-CONFIDENCE: 48.7%
+RISK / REWARD: 1 : 2.00（空方勝率估計 Bearish Probability: 51.8%）
+CONFIDENCE: 48.7%（依資料完整度與因子共振度加權）
 
-ACTION: WATCH — Fundamentally/Technically Bearish but Short-Term Oversold (RSI 24.3); Wait for Bounce to 20EMA ($9.05)
-INVALIDATION: Daily close above $9.37 (Structural Stop / 20EMA + 0.5x ATR) or 50DMA reclaim ($10.64)
+ACTION: WATCH — 雖然中期結構看空，但短線嚴重超賣 (RSI 24.3)，切勿低檔追空！等待反抽至 20EMA ($9.05) 受阻再進場
+INVALIDATION: 日線收盤重新站上 $9.37（結構停損價 / 20EMA + 0.5x ATR）或收復 50DMA ($10.64) 即視為空頭邏輯失效
 ⸻
 ```
 ```text
 ⸻
-TICKER: RIVN
-SHORT SCORE: 64.0 / RATING: B
-MARKET REGIME: 61.6/100 — RISK-OFF (Bearish Regime / Active Short Window) | Breadth Weakness 33/100 | VIX 19.45 (VIX/VIX3M 0.95)
-SECTOR: Consumer Cyclical (XLY) | 20D Ret: +2.3% (vs SPY +3.8%) | Weakness Score: 69.7/100
-TREND: Score 87/100 | Close $11.83 vs 20EMA $13.37 (-3.3 ATR), 50DMA $14.89 (-20.6%), 200DMA $15.64 (-24.4%) | 20D Support Breakdown (<$11.97), Lower-High / Double-Top Structure, Short-Term Overextended (-3.3x ATR vs 20EMA)
-MOMENTUM: RSI(14): 20.9 [OVERSOLD <30 - Bounce Risk] | MACD: -0.86 (Hist -0.14)
-RELATIVE STRENGTH: Score 75/100 | 20D Rel vs SPY: -22.1%, vs XLY: -25.8% | Downside Beta: 1.78 (Asym 1.90x)
-VOLUME: Score 72/100 | 25D Distribution Days: 9 | Down/Up Vol Ratio: 1.09x | RelVol Today: 0.93x | CMF(20): -0.24
-FUNDAMENTAL & CATALYST: Score 53/100 (Catalyst Risk: 95/100) | Rev growth +27.2% YoY | Negative OpMargin (-50.4%) | Negative FCF (Cash Burn) | RED WARNING: EARNINGS IN 3 DAYS (2026-10-29)
-SHORT SQUEEZE RISK: Squeeze Risk 49/100 [Controlled] | Options Bearish Score 35/100 | SI Float: 14.9% | Days to Cover: 8.0d | Borrow Fee: DATA UNAVAILABLE | Opt P/C Vol: 0.31 | GEX: DATA UNAVAILABLE
+TICKER: RIVN (Rivian Automotive, Inc.)
+SHORT SCORE: 63.7 / RATING: B （分數越高代表越有利空方；>=70 為 A/A+ 級空方候選，<40 代表有利多方應避開做空）
+MARKET REGIME: 61.6/100（越高越有利空方）— RISK-OFF 空方環境（61–100分：有利空方 / 適合尋找空方 Setup）｜市場寬度惡化分 33/100｜VIX 19.45 (VIX/VIX3M 0.95)
+SECTOR: Consumer Cyclical (XLY)｜20D 報酬: +2.3% (對比 SPY 超額報酬 +3.8%)｜板塊弱勢評分: 69.7（越高越弱勢/越有利空方）
+TREND: 趨勢破位評分 87/100（越高越有利空方）｜收盤 $11.83 vs 20EMA $13.37 (-3.3 ATR)、50DMA $14.89 (-20.6%)、200DMA $15.64 (-24.4%)｜跌破 20D 關鍵支撐 (<$11.97)、頭部結構形成 (Lower-High / 雙頂破線)、短線負乖離過大 (-3.3x ATR vs 20EMA，防追空扣分)
+MOMENTUM: RSI(14): 20.9 【超賣區 <30 — 提防多方技術性反彈，不宜追空】｜MACD: -0.86 (柱狀體 Hist -0.14)
+RELATIVE STRENGTH: 相對弱勢評分 75/100（越高越有利空方）｜20D 超額報酬 vs SPY: -22.1%、vs XLY: -25.8%｜下行 Beta: 1.78 (跟跌不跟漲不對稱比 1.90x)
+VOLUME: 籌碼派發評分 72/100（越高越有利空方）｜近25日機構派發日: 9 天｜下跌/上漲均量比: 1.09x｜今日相對量能: 0.93x｜CMF(20) 資金流: -0.24
+FUNDAMENTAL & CATALYST: 基本面脆弱評分 52/100（越高越有利空方）｜事件風險分 65/100（>80 代表二元跳空風險極高，不利新空單）｜營收成長 +27.2% YoY｜營業利益率為負 (-50.4%)｜自由現金流為負 (Negative FCF / 燒錢)｜財報臨近：4 天後公佈 (2026-10-30)
+SHORT SQUEEZE RISK: 軋空風險評分 49/100（⚠️ 分數越高代表越易被多方軋空，越不利空方；越低越安全）【風險可控】｜期權空方籌碼分 35/100（越高越有利空方）｜SI% 佔流通盤: 14.9%｜回補天數 (Days to Cover): 8.0天｜借券費率: DATA UNAVAILABLE｜期權 Put/Call 量比: 0.31｜GEX: DATA UNAVAILABLE
 
-ENTRY ZONE: Breakdown < $11.97 OR Weak Bounce into $12.12 – $13.44
-TRIGGER: Await break below $11.97 on >1.5x volume OR Failed Bounce rejection at 20EMA ($13.37) / VWAP ($12.23) with Lower High confirmation
-STOP: $12.94 (2.40x ATR14 ($0.46) above Entry / 5D Swing High $13.19 | Suggested Size: 0 sh / Max Risk $0)
+ENTRY ZONE: 跌破支撐 < $11.97 追空，或等待縮量反抽至 $12.12 – $13.44 壓力區
+TRIGGER: 等待帶量（>1.5x 均量）跌破 20D 支撐 $11.97，或反彈至 20EMA ($13.37) / VWAP ($12.23) 出現 Failed Bounce 轉弱訊號並確認 Lower High
+STOP: $12.94（動態波動度停損 2.40x ATR14 ($0.46) 結合近5日反壓高點 $13.19｜建議部位: 0 股 / 單筆最大承受風險 $0）
 TARGET 1: $9.61 / TARGET 2: $7.94
-RISK / REWARD: 1 : 2.00 (Bearish Prob: 50.6%)
-CONFIDENCE: 47.8%
+RISK / REWARD: 1 : 2.00（空方勝率估計 Bearish Probability: 50.4%）
+CONFIDENCE: 47.7%（依資料完整度與因子共振度加權）
 
-ACTION: WAIT — RED WARNING: Binary Earnings Event in 3d (Avoid New Short)
-INVALIDATION: Daily close above $13.60 (Structural Stop / 20EMA + 0.5x ATR) or 50DMA reclaim ($14.89)
+ACTION: WATCH — 雖然中期結構看空，但短線嚴重超賣 (RSI 20.9)，切勿低檔追空！等待反抽至 20EMA ($13.37) 受阻再進場
+INVALIDATION: 日線收盤重新站上 $13.60（結構停損價 / 20EMA + 0.5x ATR）或收復 50DMA ($14.89) 即視為空頭邏輯失效
 ⸻
 ```
 ```text
 ⸻
-TICKER: MSTR
-SHORT SCORE: 57.0 / RATING: B
-MARKET REGIME: 61.6/100 — RISK-OFF (Bearish Regime / Active Short Window) | Breadth Weakness 33/100 | VIX 19.45 (VIX/VIX3M 0.95)
-SECTOR: Technology (XLK) | 20D Ret: -6.6% (vs SPY -5.2%) | Weakness Score: 90.4/100
-TREND: Score 25/100 | Close $146.01 vs 20EMA $147.95 (-0.2 ATR), 50DMA $139.70 (+4.5%), 200DMA $135.26 (+8.0%) | No Structural Breakdown Confirmed
-MOMENTUM: RSI(14): 49.5 [Bearish Zone 32-52] | MACD: 0.61 (Hist -1.87) | RSI Bearish Divergence Detected
-RELATIVE STRENGTH: Score 76/100 | 20D Rel vs SPY: -6.5%, vs XLK: -1.3% | Downside Beta: 4.71 (Asym 2.18x)
-VOLUME: Score 72/100 | 25D Distribution Days: 8 | Down/Up Vol Ratio: 1.03x | RelVol Today: 0.95x | CMF(20): -0.16
-FUNDAMENTAL & CATALYST: Score 78/100 (Catalyst Risk: 95/100) | Slow Rev growth (+6.9% YoY) | Negative OpMargin (-6808.1%) | Negative FCF (Cash Burn) | Stretched Valuation (EV/Rev 150.2x) | RED WARNING: EARNINGS IN 3 DAYS (2026-10-29)
-SHORT SQUEEZE RISK: Squeeze Risk 17/100 [Controlled] | Options Bearish Score 45/100 | SI Float: 7.3% | Days to Cover: 1.2d | Borrow Fee: DATA UNAVAILABLE | Opt P/C Vol: 0.95 | GEX: DATA UNAVAILABLE
+TICKER: CVNA (Carvana Co.)
+SHORT SCORE: 56.8 / RATING: B （分數越高代表越有利空方；>=70 為 A/A+ 級空方候選，<40 代表有利多方應避開做空）
+MARKET REGIME: 61.6/100（越高越有利空方）— RISK-OFF 空方環境（61–100分：有利空方 / 適合尋找空方 Setup）｜市場寬度惡化分 33/100｜VIX 19.45 (VIX/VIX3M 0.95)
+SECTOR: Consumer Cyclical (XLY)｜20D 報酬: +2.3% (對比 SPY 超額報酬 +3.8%)｜板塊弱勢評分: 69.7（越高越弱勢/越有利空方）
+TREND: 趨勢破位評分 92/100（越高越有利空方）｜收盤 $57.81 vs 20EMA $61.24 (-1.2 ATR)、50DMA $66.61 (-13.2%)、200DMA $69.92 (-17.3%)｜逼近測試 20D 頸線支撐 ($56.28)、頭部結構形成 (Lower-High / 雙頂破線)
+MOMENTUM: RSI(14): 37.5 【空方優勢動能帶 32–52（有利空方）】｜MACD: -2.20 (柱狀體 Hist -0.05)
+RELATIVE STRENGTH: 相對弱勢評分 85/100（越高越有利空方）｜20D 超額報酬 vs SPY: -9.7%、vs XLY: -13.4%｜下行 Beta: 3.47 (跟跌不跟漲不對稱比 4.53x)
+VOLUME: 籌碼派發評分 51/100（越高越有利空方）｜近25日機構派發日: 8 天｜下跌/上漲均量比: 0.90x｜今日相對量能: 0.74x｜CMF(20) 資金流: -0.08
+FUNDAMENTAL & CATALYST: 基本面脆弱評分 18/100（越高越有利空方）｜事件風險分 95/100（>80 代表二元跳空風險極高，不利新空單）｜營收成長 +52.4% YoY｜營業利益率 9.2%｜自由現金流為正｜【🔴 紅色警告：距離財報僅 3 天 (2026-10-29) — 嚴防二元跳空風險】
+SHORT SQUEEZE RISK: 軋空風險評分 49/100（⚠️ 分數越高代表越易被多方軋空，越不利空方；越低越安全）【風險可控】｜期權空方籌碼分 45/100（越高越有利空方）｜SI% 佔流通盤: 12.6%｜回補天數 (Days to Cover): 9.2天｜借券費率: DATA UNAVAILABLE｜期權 Put/Call 量比: 0.93｜GEX: DATA UNAVAILABLE
 
-ENTRY ZONE: Breakdown < $133.60 OR Weak Bounce into $143.03 – $149.43
-TRIGGER: Await break below $133.60 on >1.5x volume OR Failed Bounce rejection at 20EMA ($147.95) / VWAP ($145.49) with Lower High confirmation
-STOP: $157.23 (2.40x ATR14 ($9.84) above Entry / 5D Swing High $155.69 | Suggested Size: 0 sh / Max Risk $0)
-TARGET 1: $89.21 / TARGET 2: $50.91
-RISK / REWARD: 1 : 1.88 (Bearish Prob: 46.8%)
-CONFIDENCE: 44.8%
-
-ACTION: WAIT — RED WARNING: Binary Earnings Event in 3d (Avoid New Short)
-INVALIDATION: Daily close above $157.23 (Structural Stop / 20EMA + 0.5x ATR) or 50DMA reclaim ($139.70)
-⸻
-```
-```text
-⸻
-TICKER: CVNA
-SHORT SCORE: 56.8 / RATING: B
-MARKET REGIME: 61.6/100 — RISK-OFF (Bearish Regime / Active Short Window) | Breadth Weakness 33/100 | VIX 19.45 (VIX/VIX3M 0.95)
-SECTOR: Consumer Cyclical (XLY) | 20D Ret: +2.3% (vs SPY +3.8%) | Weakness Score: 69.7/100
-TREND: Score 92/100 | Close $57.81 vs 20EMA $61.24 (-1.2 ATR), 50DMA $66.61 (-13.2%), 200DMA $69.92 (-17.3%) | Testing 20D Neckline ($56.28), Lower-High / Double-Top Structure
-MOMENTUM: RSI(14): 37.5 [Bearish Zone 32-52] | MACD: -2.20 (Hist -0.05)
-RELATIVE STRENGTH: Score 85/100 | 20D Rel vs SPY: -9.7%, vs XLY: -13.4% | Downside Beta: 3.47 (Asym 4.53x)
-VOLUME: Score 51/100 | 25D Distribution Days: 8 | Down/Up Vol Ratio: 0.90x | RelVol Today: 0.74x | CMF(20): -0.08
-FUNDAMENTAL & CATALYST: Score 18/100 (Catalyst Risk: 95/100) | Rev growth +52.4% YoY | OpMargin 9.2% | FCF Positive | RED WARNING: EARNINGS IN 2 DAYS (2026-10-28)
-SHORT SQUEEZE RISK: Squeeze Risk 49/100 [Controlled] | Options Bearish Score 45/100 | SI Float: 12.6% | Days to Cover: 9.2d | Borrow Fee: DATA UNAVAILABLE | Opt P/C Vol: 0.93 | GEX: DATA UNAVAILABLE
-
-ENTRY ZONE: $57.52 – $61.24 (20EMA / 5D-VWAP Rejection Band)
-TRIGGER: CONFIRMED: Failed bounce / rejection at 20EMA ($61.24) & 5D-VWAP ($58.99) with break below prior low $58.44
-STOP: $63.71 (2.03x ATR14 ($2.91) above Entry / 5D Swing High $62.22 | Suggested Size: 0 sh / Max Risk $0)
+ENTRY ZONE: $57.52 – $61.24（20EMA / 5D-VWAP 反抽受阻壓力帶）
+TRIGGER: 【已觸發】弱勢反抽測試 20EMA ($61.24) 與 5D-VWAP ($58.99) 受阻回落，並跌破前日低點 $58.44 確認 Lower High
+STOP: $63.71（動態波動度停損 2.03x ATR14 ($2.91) 結合近5日反壓高點 $62.22｜建議部位: 0 股 / 單筆最大承受風險 $0）
 TARGET 1: $46.01 / TARGET 2: $37.16
-RISK / REWARD: 1 : 2.00 (Bearish Prob: 54.6%)
-CONFIDENCE: 52.5%
+RISK / REWARD: 1 : 2.00（空方勝率估計 Bearish Probability: 54.6%）
+CONFIDENCE: 52.5%（依資料完整度與因子共振度加權）
 
-ACTION: WAIT — RED WARNING: Binary Earnings Event in 2d (Avoid New Short)
-INVALIDATION: Daily close above $63.71 (Structural Stop / 20EMA + 0.5x ATR) or 50DMA reclaim ($66.61)
+ACTION: WAIT — 【🔴 紅色警告】距離財報僅 3 天，禁止新開空單以防財報跳空軋空
+INVALIDATION: 日線收盤重新站上 $63.71（結構停損價 / 20EMA + 0.5x ATR）或收復 50DMA ($66.61) 即視為空頭邏輯失效
+⸻
+```
+```text
+⸻
+TICKER: MSTR (Strategy Inc)
+SHORT SCORE: 56.7 / RATING: B （分數越高代表越有利空方；>=70 為 A/A+ 級空方候選，<40 代表有利多方應避開做空）
+MARKET REGIME: 61.6/100（越高越有利空方）— RISK-OFF 空方環境（61–100分：有利空方 / 適合尋找空方 Setup）｜市場寬度惡化分 33/100｜VIX 19.45 (VIX/VIX3M 0.95)
+SECTOR: Technology (XLK)｜20D 報酬: -6.6% (對比 SPY 超額報酬 -5.2%)｜板塊弱勢評分: 90.4（越高越弱勢/越有利空方）
+TREND: 趨勢破位評分 25/100（越高越有利空方）｜收盤 $146.01 vs 20EMA $147.95 (-0.2 ATR)、50DMA $139.70 (+4.5%)、200DMA $135.26 (+8.0%)｜尚未出現結構性破位形態
+MOMENTUM: RSI(14): 49.5 【空方優勢動能帶 32–52（有利空方）】｜MACD: 0.61 (柱狀體 Hist -1.87)｜偵測到 RSI 熊市頂背離
+RELATIVE STRENGTH: 相對弱勢評分 76/100（越高越有利空方）｜20D 超額報酬 vs SPY: -6.5%、vs XLK: -1.3%｜下行 Beta: 4.71 (跟跌不跟漲不對稱比 2.18x)
+VOLUME: 籌碼派發評分 72/100（越高越有利空方）｜近25日機構派發日: 8 天｜下跌/上漲均量比: 1.03x｜今日相對量能: 0.95x｜CMF(20) 資金流: -0.16
+FUNDAMENTAL & CATALYST: 基本面脆弱評分 77/100（越高越有利空方）｜事件風險分 65/100（>80 代表二元跳空風險極高，不利新空單）｜營收成長放緩 (+6.9% YoY)｜營業利益率為負 (-6808.1%)｜自由現金流為負 (Negative FCF / 燒錢)｜高估值脆弱 (EV/Rev 150.2x)｜財報臨近：4 天後公佈 (2026-10-30)
+SHORT SQUEEZE RISK: 軋空風險評分 17/100（⚠️ 分數越高代表越易被多方軋空，越不利空方；越低越安全）【風險可控】｜期權空方籌碼分 45/100（越高越有利空方）｜SI% 佔流通盤: 7.3%｜回補天數 (Days to Cover): 1.2天｜借券費率: DATA UNAVAILABLE｜期權 Put/Call 量比: 0.95｜GEX: DATA UNAVAILABLE
+
+ENTRY ZONE: 跌破支撐 < $133.60 追空，或等待縮量反抽至 $143.03 – $149.43 壓力區
+TRIGGER: 等待帶量（>1.5x 均量）跌破 20D 支撐 $133.60，或反彈至 20EMA ($147.95) / VWAP ($145.49) 出現 Failed Bounce 轉弱訊號並確認 Lower High
+STOP: $157.23（動態波動度停損 2.40x ATR14 ($9.84) 結合近5日反壓高點 $155.69｜建議部位: 0 股 / 單筆最大承受風險 $0）
+TARGET 1: $89.21 / TARGET 2: $50.91
+RISK / REWARD: 1 : 1.88（空方勝率估計 Bearish Probability: 46.6%）
+CONFIDENCE: 44.7%（依資料完整度與因子共振度加權）
+
+ACTION: WATCH — 【看空但暫不適合進場】基本面或技術面偏弱，惟尚未滿足進場 Trigger 或評級未達 A 級
+INVALIDATION: 日線收盤重新站上 $157.23（結構停損價 / 20EMA + 0.5x ATR）或收復 50DMA ($139.70) 即視為空頭邏輯失效
+⸻
+```
+```text
+⸻
+TICKER: SNOW (Snowflake Inc.)
+SHORT SCORE: 56.6 / RATING: B （分數越高代表越有利空方；>=70 為 A/A+ 級空方候選，<40 代表有利多方應避開做空）
+MARKET REGIME: 61.6/100（越高越有利空方）— RISK-OFF 空方環境（61–100分：有利空方 / 適合尋找空方 Setup）｜市場寬度惡化分 33/100｜VIX 19.45 (VIX/VIX3M 0.95)
+SECTOR: Technology (XLK)｜20D 報酬: -6.6% (對比 SPY 超額報酬 -5.2%)｜板塊弱勢評分: 90.4（越高越弱勢/越有利空方）
+TREND: 趨勢破位評分 70/100（越高越有利空方）｜收盤 $325.43 vs 20EMA $330.48 (-0.3 ATR)、50DMA $331.67 (-1.9%)、200DMA $236.29 (+37.7%)｜頭部結構形成 (Lower-High / 雙頂破線)
+MOMENTUM: RSI(14): 47.5 【空方優勢動能帶 32–52（有利空方）】｜MACD: -3.15 (柱狀體 Hist -3.21)
+RELATIVE STRENGTH: 相對弱勢評分 40/100（越高越有利空方）｜20D 超額報酬 vs SPY: -1.7%、vs XLK: +3.5%｜下行 Beta: 3.83 (跟跌不跟漲不對稱比 1.14x)
+VOLUME: 籌碼派發評分 37/100（越高越有利空方）｜近25日機構派發日: 5 天｜下跌/上漲均量比: 0.93x｜今日相對量能: 0.69x｜CMF(20) 資金流: +0.05
+FUNDAMENTAL & CATALYST: 基本面脆弱評分 40/100（越高越有利空方）｜事件風險分 25/100（>80 代表二元跳空風險極高，不利新空單）｜營收成長 +35.1% YoY｜營業利益率為負 (-17.0%)｜自由現金流為正｜高估值脆弱 (EV/Rev 21.2x)｜下次財報：38 天後
+SHORT SQUEEZE RISK: 軋空風險評分 23/100（⚠️ 分數越高代表越易被多方軋空，越不利空方；越低越安全）【風險可控】｜期權空方籌碼分 88/100（越高越有利空方）｜SI% 佔流通盤: 5.2%｜回補天數 (Days to Cover): 3.2天｜借券費率: DATA UNAVAILABLE｜期權 Put/Call 量比: 1.42｜異常價外賣權買入 (OTM Put Buying)｜GEX: DATA UNAVAILABLE
+
+ENTRY ZONE: 跌破支撐 < $302.24 追空，或等待縮量反抽至 $313.21 – $333.10 壓力區
+TRIGGER: 等待帶量（>1.5x 均量）跌破 20D 支撐 $302.24，或反彈至 20EMA ($330.48) / VWAP ($317.58) 出現 Failed Bounce 轉弱訊號並確認 Lower High
+STOP: $344.18（動態波動度停損 2.40x ATR14 ($17.48) 結合近5日反壓高點 $343.88｜建議部位: 0 股 / 單筆最大承受風險 $0）
+TARGET 1: $218.36 / TARGET 2: $155.45
+RISK / REWARD: 1 : 2.00（空方勝率估計 Bearish Probability: 46.5%）
+CONFIDENCE: 44.6%（依資料完整度與因子共振度加權）
+
+ACTION: WATCH — 【看空但暫不適合進場】基本面或技術面偏弱，惟尚未滿足進場 Trigger 或評級未達 A 級
+INVALIDATION: 日線收盤重新站上 $344.18（結構停損價 / 20EMA + 0.5x ATR）或收復 50DMA ($331.67) 即視為空頭邏輯失效
 ⸻
 ```

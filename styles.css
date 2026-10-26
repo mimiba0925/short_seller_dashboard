@@ -2,7 +2,6 @@
    1. ROOT THEME & COLOR-SCHEME TOKENS (Compliant with modern-web-guidance: dark-mode)
    ========================================================================== */
 :root {
-  /* Raw light and dark tokens */
   --bg-canvas-light: #f4f6fb;
   --bg-canvas-dark: #090d16;
   --bg-panel-light: #ffffff;
@@ -38,7 +37,6 @@
   --scrollbar-track-light: #e2e8f0;
   --scrollbar-track-dark: #0f172a;
 
-  /* Default (Light) fallback */
   --bg-canvas: var(--bg-canvas-light);
   --bg-panel: var(--bg-panel-light);
   --bg-elevated: var(--bg-elevated-light);
@@ -120,10 +118,10 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Microsoft JhengHei", sans-serif;
   background-color: var(--bg-canvas);
   color: var(--text-primary);
-  line-height: 1.45;
+  line-height: 1.48;
   padding-block-end: 2.5rem;
 }
 
@@ -139,7 +137,7 @@ body {
 }
 
 /* ==========================================================================
-   2. HEADER & CONTROLS
+   2. HEADER, CONTROLS & POLARITY LEGEND BANNER
    ========================================================================== */
 .topbar {
   display: flex;
@@ -156,7 +154,7 @@ body {
   display: inline-block;
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   padding: 0.15rem 0.55rem;
   border-radius: 4px;
   background-color: var(--danger-bg);
@@ -173,7 +171,6 @@ body {
   margin: 0.2rem 0 0;
   font-size: 0.8rem;
   color: var(--text-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .controls-bar {
@@ -186,6 +183,30 @@ body {
 .inline-form {
   display: flex;
   gap: 0.35rem;
+}
+
+.polarity-banner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem 0;
+}
+
+.polarity-item {
+  padding: 0.55rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.79rem;
+  border: 1px solid var(--border-subtle);
+}
+
+.polarity-item.bear-favorable {
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+.polarity-item.squeeze-danger {
+  background-color: var(--warn-bg);
+  color: var(--warn-text);
 }
 
 input[type="text"],
@@ -234,7 +255,7 @@ input[type="number"] {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 540px), 1fr));
   gap: 1.25rem;
-  padding: 1.25rem 1.5rem;
+  padding: 1rem 1.5rem;
 }
 
 .span-full {
@@ -276,7 +297,7 @@ input[type="number"] {
 
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 0.9rem;
   margin-block-end: 1.1rem;
 }
@@ -286,13 +307,28 @@ input[type="number"] {
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 .kpi-label {
-  font-size: 0.73rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 0.04em;
+  color: var(--text-primary);
+}
+
+.kpi-polarity {
+  font-size: 0.71rem;
+  font-weight: 600;
+}
+
+.kpi-polarity.bear-tag {
+  color: var(--danger-text);
+}
+
+.kpi-polarity.warn-tag {
+  color: var(--warn-text);
 }
 
 .kpi-value-row {
@@ -300,7 +336,7 @@ input[type="number"] {
   align-items: baseline;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-block: 0.35rem;
+  margin-block: 0.25rem;
 }
 
 .kpi-number {
@@ -373,7 +409,6 @@ caption {
   border-block-end: 1px solid var(--border-subtle);
 }
 
-/* Sticky column headers (desktop) */
 thead {
   position: sticky;
   inset-block-start: 0;
@@ -399,7 +434,6 @@ tbody tr:hover th {
   background-color: var(--bg-elevated);
 }
 
-/* Sticky row headers (desktop) */
 tbody th {
   position: sticky;
   inset-inline-start: 0;
@@ -417,7 +451,6 @@ tbody td {
   vertical-align: middle;
 }
 
-/* Responsive Stacked Layout when container width < 600px */
 @container (width < 600px) {
   table,
   thead,
@@ -446,18 +479,18 @@ tbody td {
   }
 
   .screener-table {
-    --label-2: "Short Score / Rating";
-    --label-3: "Execution State";
-    --label-4: "Classification";
-    --label-5: "Price / ATR14";
-    --label-6: "A: Trend (25%)";
-    --label-7: "B: RelWeak (15%)";
-    --label-8: "C: Vol/Dist (15%)";
-    --label-9: "D: Fund/Cat (25%)";
-    --label-10: "E: Squeeze Risk";
-    --label-11: "Entry / Stop / T1";
-    --label-12: "R/R & Size";
-    --label-13: "Action Card";
+    --label-2: "空方總分 / 評級 (↑利空)";
+    --label-3: "進退場狀態 (FSM)";
+    --label-4: "做空安全分類";
+    --label-5: "現價 / ATR14";
+    --label-6: "A: 趨勢破位 (↑利空)";
+    --label-7: "B: 相對弱勢 (↑利空)";
+    --label-8: "C: 籌碼派發 (↑利空)";
+    --label-9: "D: 基本面脆弱 (↑利空)";
+    --label-10: "E: 軋空風險 (⚠️↑危險)";
+    --label-11: "進場 / 停損 / 目標1";
+    --label-12: "風報比 & 建議股數";
+    --label-13: "完整決策卡";
   }
 
   .screener-table td:nth-child(2)::before { content: var(--label-2) ": "; font-weight: 600; }
@@ -541,7 +574,7 @@ tbody td {
    6. DIALOG MODALS (Compliant with modern-web-guidance: light-dismiss-a-dialog)
    ========================================================================== */
 dialog {
-  inline-size: min(820px, 92vw);
+  inline-size: min(840px, 92vw);
   max-block-size: 86vh;
   border: 1px solid var(--border-subtle);
   border-radius: 12px;

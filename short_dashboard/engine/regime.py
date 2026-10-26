@@ -51,7 +51,7 @@ def _eval_index(ticker: str, df: pd.DataFrame) -> IndexSnapshot:
     below_sma50 = close < sma50
     below_sma200 = close < sma200
 
-    # Index Bearish Sub-score (0-100)
+    # Index Bearish Sub-score (0-100, 分數越高越有利空方)
     score = 0.0
     if below_ema20:
         score += 22.0
@@ -138,7 +138,7 @@ def compute_breadth_metrics(
             breadth_divergence=False,
             breadth_weakness_score=50.0,
             summary=DATA_UNAVAILABLE,
-            source_note="Insufficient constituent history",
+            source_note="歷史成分股資料不足",
         )
 
     pct_50 = (above_50 / valid) * 100.0
@@ -146,10 +146,9 @@ def compute_breadth_metrics(
     nh_nl_pct = ((new_highs - new_lows) / valid) * 100.0
     ad_ratio = adv_10d / max(1, dec_10d)
 
-    # Sub-scores for Breadth Weakness (0-100, higher = weaker breadth = better for shorts)
+    # Sub-scores for Breadth Weakness (0-100, 分數越高代表寬度越惡化=越有利空方；越低越有利多方)
     b50_score = np.clip(100.0 - pct_50, 0.0, 100.0)
     b200_score = np.clip(100.0 - pct_200, 0.0, 100.0)
-    # Net New Highs/Lows: if net negative, >50 score
     nhnl_score = np.clip(50.0 - nh_nl_pct * 1.8, 0.0, 100.0)
     ad_score = np.clip((1.15 - ad_ratio) * 90.0, 0.0, 100.0)
 
@@ -159,10 +158,12 @@ def compute_breadth_metrics(
         raw_score = min(100.0, raw_score + 10.0)
 
     weakness_score = round(float(raw_score), 1)
+    bias_label = "偏空方" if weakness_score >= 55 else ("中性" if weakness_score >= 40 else "偏多方")
     summary = (
-        f"Breadth Weakness {weakness_score}/100 | >50MA: {pct_50:.1f}%, >200MA: {pct_200:.1f}%, "
-        f"Net NH-NL: {nh_nl_pct:+.1f}%, 10D A/D: {ad_ratio:.2f}"
-        + (" [BREADTH DIVERGENCE WARNING]" if divergence else "")
+        f"寬度惡化評分 {weakness_score}/100（分數越高越有利空方，目前{bias_label}）｜"
+        f"高於 50MA 比例: {pct_50:.1f}%、高於 200MA 比例: {pct_200:.1f}%、"
+        f"52週新高減新低差: {nh_nl_pct:+.1f}%、10日漲跌家數比 (A/D): {ad_ratio:.2f}"
+        + ("【⚠️ 指數與市場寬度熊市背離】" if divergence else "")
     )
     return BreadthMetrics(
         pct_above_50ma=round(pct_50, 1),
@@ -172,7 +173,7 @@ def compute_breadth_metrics(
         breadth_divergence=divergence,
         breadth_weakness_score=weakness_score,
         summary=summary,
-        source_note=f"Computed across {valid}-stock S&P/Nasdaq leader basket",
+        source_note=f"取樣自 {valid} 檔 S&P 500 / Nasdaq 核心權值與監控成分股",
     )
 
 
@@ -200,26 +201,23 @@ def compute_volatility_metrics(provider: MarketDataProvider) -> VolatilityMetric
     term_ratio = vix / vix3m if vix3m > 0 else 0.92
     inverted = term_ratio >= 1.00
 
-    # Derive SPY Option Put/Call Ratio if available
     spy_data = provider.get_ticker_data("SPY")
     eq_pcr = spy_data.put_call_vol_ratio
     if eq_pcr is not None:
-        pcr_status = f"SPY P/C Ratio: {eq_pcr:.2f} (" + (
-            "Bearish Hedging Active" if eq_pcr >= 1.05 else "Neutral/Balanced"
-        ) + ")"
+        pcr_status = f"SPY Put/Call Ratio: {eq_pcr:.2f}（" + (
+            "空方避險買盤積極" if eq_pcr >= 1.05 else "多空平衡/中性"
+        ) + "）"
         pcr_sub = np.clip((eq_pcr - 0.75) * 110.0, 0.0, 100.0)
     else:
-        pcr_status = f"Equity Put/Call Ratio: {DATA_UNAVAILABLE}"
+        pcr_status = f"股票型 Put/Call Ratio: {DATA_UNAVAILABLE}"
         pcr_sub = 45.0
 
-    # VIX level & RoC sub-score (0-100)
     vix_lvl_score = np.clip((vix - 12.5) * 4.5, 0.0, 75.0)
     if vix_5d_roc > 15.0:
         vix_lvl_score = min(100.0, vix_lvl_score + 25.0)
     elif vix_5d_roc > 7.5:
         vix_lvl_score = min(100.0, vix_lvl_score + 12.0)
 
-    # Term structure sub-score (0-100)
     if inverted:
         ts_score = min(100.0, 82.0 + (term_ratio - 1.0) * 180.0)
     elif term_ratio >= 0.92:
@@ -229,10 +227,10 @@ def compute_volatility_metrics(provider: MarketDataProvider) -> VolatilityMetric
 
     vol_score = round(float(0.38 * vix_lvl_score + 0.42 * ts_score + 0.20 * pcr_sub), 1)
     summary = (
-        f"Vol Score {vol_score}/100 | VIX: {vix:.2f} (5D {vix_5d_roc:+.1f}%), "
-        f"VIX/VIX3M: {term_ratio:.2f} "
-        + ("[BACKWARDATION / INVERTED]" if inverted else "[CONTANGO]")
-        + (" [VOL CLIMAX]" if climax else "")
+        f"波動避險評分 {vol_score}/100（分數越高代表恐慌升溫越有利空方）｜"
+        f"VIX: {vix:.2f} (5日變化 {vix_5d_roc:+.1f}%)、VIX/VIX3M 期限比: {term_ratio:.2f} "
+        + ("【⚠️ 期限結構倒掛 Backwardation — 強烈有利空方】" if inverted else "【正價差 Contango】")
+        + ("【⚠️ 波動極端高潮 — 提防空頭暴力回補】" if climax else "")
     )
     return VolatilityMetrics(
         vix=round(vix, 2),
@@ -269,7 +267,7 @@ def compute_market_regime(
     breadth = compute_breadth_metrics(provider, spy_snap, custom_tickers=watchlist)
     vol = compute_volatility_metrics(provider)
 
-    # Composite Market Regime Score (0-100)
+    # Composite Market Regime Score (0-100: 分數越高越有利空方，越低越有利多方)
     idx_composite = (
         0.40 * spy_snap.sub_score
         + 0.35 * qqq_snap.sub_score
@@ -285,34 +283,32 @@ def compute_market_regime(
     regime_score = round(float(np.clip(regime_score, 0.0, 100.0)), 1)
 
     if regime_score <= 40.0:
-        regime_label = "RISK-ON (Bullish Tape / Short Filter Closed)"
+        regime_label = "RISK-ON 多頭環境（0–40分：有利多方 / 不適合積極做空）"
         policy = (
-            "BLOCK NEW SPECULATIVE SHORTS. Max gross short <= 15% (hedge only). "
-            + ("MANDATORY 50% SHORT REDUCTION ACTIVE (Score < 30)." if regime_score < 30.0 else "Tighten stops on existing shorts.")
+            "【禁止新開投機空單】大盤偏多（分數越低越有利多方），總空頭曝險上限 <= 15%（僅限避險）。"
+            + (" 分數低於 30 分：強制將既有空單減倉 50% 並收緊停損！" if regime_score < 30.0 else " 既有空單請收緊移動停損。")
         )
         max_exp = 15.0
         sizing_mult = 0.0
         de_gross = regime_score < 35.0
     elif regime_score <= 60.0:
-        regime_label = "NEUTRAL (Selective Dispersion / Watch Mode)"
+        regime_label = "NEUTRAL 震盪觀察期（41–60分：多空拉鋸 / 適合觀察）"
         policy = (
-            "SELECTIVE SHORTING ONLY (Rating A+ / Relative Weakness leaders). "
-            "Position sizing reduced to 0.50x standard risk. Max gross short <= 45%."
+            "【選擇性試單】僅開放 Rating A+ 且顯著弱於大盤之領跌股，單筆部位規模縮減為 0.55x 標準風險，總空頭曝險上限 <= 45%。"
         )
         max_exp = 45.0
         sizing_mult = 0.55
         de_gross = False
     else:
-        regime_label = "RISK-OFF (Bearish Regime / Active Short Window)"
+        regime_label = "RISK-OFF 空方環境（61–100分：有利空方 / 適合尋找空方 Setup）"
         policy = (
-            "SHORT BOOK OPEN for A+ and A rated setups. Full 1.0x risk sizing allowed. "
-            "Pyramiding (ADD) enabled on Lower High confirmation if score > 70."
+            "【全面開放空方部位】指數均線破位且派發明顯（分數越高越有利空方），開放 A+ 與 A 級空單進場（1.0x 標準風險），"
+            "若分數 > 70 且確認 Lower High 允許順勢加碼 (ADD)。"
         )
         max_exp = 100.0
         sizing_mult = 1.0
         de_gross = False
 
-    # Rank sector ETFs by relative weakness vs SPY
     sector_rankings: List[Dict[str, Any]] = []
     for etf in sector_etfs:
         df = batch.get(etf)

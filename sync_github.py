@@ -19,6 +19,10 @@ def run_cmd(cmd, check=True, capture=False):
 
 def main():
     py = str(VENV_PY) if VENV_PY.exists() else sys.executable
+    rem = run_cmd(["git", "remote", "-v"], check=False, capture=True)
+    if "origin" in (rem.stdout or ""):
+        run_cmd(["git", "pull", "--rebase", "-X", "ours", "origin", "main"], check=False)
+
     print("=" * 68)
     print(" [Step 1/2] 執行 build_static.py 產生最新靜態網站與 snapshot.js ...")
     print("=" * 68)

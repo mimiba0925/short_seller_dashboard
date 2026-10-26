@@ -18,11 +18,10 @@ def generate_alerts(
     evaluations: List[StockShortEvaluation],
     portfolio_risk: PortfolioRiskSummary,
 ) -> List[Dict[str, Any]]:
-    """Generates prioritized real-time Webhook/Alert payloads according to Module 5 spec."""
+    """Generates prioritized real-time Webhook/Alert payloads in Traditional Chinese."""
     alerts: List[Dict[str, Any]] = []
-    now_iso = dt.datetime.now().isoformat(timespec="seconds")
+    now_iso = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # 1. Macro Regime Alerts
     if regime.volatility.term_structure_inverted:
         alerts.append(
             {
@@ -30,10 +29,10 @@ def generate_alerts(
                 "priority": AlertPriority.HIGH.value,
                 "category": "VOLATILITY_REGIME",
                 "ticker": "VIX/VIX3M",
-                "title": f"VIX Term Structure Inverted ({regime.volatility.vix_term_ratio:.2f}x)",
+                "title": f"VIX 期限結構倒掛 ({regime.volatility.vix_term_ratio:.2f}x) — 強烈有利空方",
                 "message": (
-                    f"VIX ({regime.volatility.vix:.2f}) > VIX3M ({regime.volatility.vix3m:.2f}). "
-                    "Institutional near-term hedging surge — Short weighting boosted."
+                    f"近月 VIX ({regime.volatility.vix:.2f}) 高於遠月 VIX3M ({regime.volatility.vix3m:.2f})，"
+                    "機構緊急買進現貨避險保護，系統自動調高空方權重。"
                 ),
                 "webhook_payload": {
                     "event": "VIX_BACKWARDATION",
@@ -50,8 +49,8 @@ def generate_alerts(
                 "priority": AlertPriority.CRITICAL.value,
                 "category": "MARKET_REGIME",
                 "ticker": "SPY/QQQ",
-                "title": f"Risk-On Regime ({regime.market_regime_score:.1f}/100) — Mandatory Short Reduction",
-                "message": "Market Regime Score < 35. Block new speculative shorts and reduce gross short exposure by 50%.",
+                "title": f"大盤多頭強勢 ({regime.market_regime_score:.1f}/100，有利多方) — 強制空單減倉",
+                "message": "大盤環境評分低於 35 分（越低越有利多方），系統禁止開立新空單並建議既有空單強制減倉 50%。",
                 "webhook_payload": {
                     "event": "MANDATORY_SHORT_DEGROSS",
                     "regime_score": regime.market_regime_score,
@@ -59,9 +58,7 @@ def generate_alerts(
             }
         )
 
-    # 2. Stock-Level Alerts
     for ev in evaluations:
-        # CRITICAL: Earnings within 3 days
         if ev.factors.earnings_red_warning:
             alerts.append(
                 {
@@ -69,10 +66,10 @@ def generate_alerts(
                     "priority": AlertPriority.CRITICAL.value,
                     "category": "CATALYST_BINARY_RISK",
                     "ticker": ev.ticker,
-                    "title": f"RED WARNING: {ev.ticker} Earnings in {ev.factors.days_to_earnings} Days",
+                    "title": f"🔴 財報紅色警告：{ev.ticker} 距離財報僅剩 {ev.factors.days_to_earnings} 天",
                     "message": (
-                        f"{ev.ticker} reports earnings within <= 3 days. Freeze new short entries; "
-                        "cover or hedge existing short exposure to avoid binary gap risk."
+                        f"{ev.ticker} 將於 {ev.factors.days_to_earnings} 天內公佈財報（事件風險分 95/100，不利空方留倉），"
+                        "強制凍結新空單進場，既有空單請提前平倉或買入買權保護以避開跳空軋空。"
                     ),
                     "webhook_payload": {
                         "event": "EARNINGS_RED_WARNING",
@@ -83,7 +80,6 @@ def generate_alerts(
                 }
             )
 
-        # CRITICAL: High Squeeze Risk Warning
         if ev.factors.squeeze_warning_active:
             alerts.append(
                 {
@@ -91,7 +87,7 @@ def generate_alerts(
                     "priority": AlertPriority.CRITICAL.value,
                     "category": "SQUEEZE_RISK",
                     "ticker": ev.ticker,
-                    "title": f"SQUEEZE RISK ALERT: {ev.ticker} (Score {ev.factors.squeeze_risk_score:.0f}/100)",
+                    "title": f"⚠️ 嚴重軋空警告：{ev.ticker}（軋空風險分 {ev.factors.squeeze_risk_score:.0f}/100，分數越高越危險）",
                     "message": ev.factors.short_squeeze_status,
                     "webhook_payload": {
                         "event": "SHORT_SQUEEZE_WARNING",
@@ -102,7 +98,6 @@ def generate_alerts(
                 }
             )
 
-        # HIGH PRIORITY: Actionable Short Entry Trigger (Regime >= 60 or A+/A with Trigger Fired)
         if ev.execution.raw_state == ExecutionAction.ENTRY:
             alerts.append(
                 {
@@ -110,11 +105,11 @@ def generate_alerts(
                     "priority": AlertPriority.HIGH.value,
                     "category": "EXECUTION_TRIGGER",
                     "ticker": ev.ticker,
-                    "title": f"ACTIONABLE SHORT ENTRY: {ev.ticker} [{ev.rating.value} | Score {ev.short_score:.1f}]",
+                    "title": f"🎯 可執行做空觸發 (ENTRY)：{ev.ticker} [評級 {ev.rating.value}｜空方評分 {ev.short_score:.1f} 有利空方]",
                     "message": (
-                        f"{ev.execution.trigger_condition} | Entry Ref ${ev.execution.entry_reference_price:.2f}, "
-                        f"Stop ${ev.execution.stop_price:.2f}, T1 ${ev.execution.target_1:.2f} "
-                        f"(R/R 1:{ev.execution.risk_reward_ratio:.2f})"
+                        f"{ev.execution.trigger_condition}｜參考進場 ${ev.execution.entry_reference_price:.2f}、"
+                        f"動態停損 ${ev.execution.stop_price:.2f}、第一目標價 ${ev.execution.target_1:.2f} "
+                        f"(風報比 1:{ev.execution.risk_reward_ratio:.2f})"
                     ),
                     "webhook_payload": {
                         "event": "SHORT_ENTRY_TRIGGER",
@@ -137,8 +132,8 @@ def generate_alerts(
                     "priority": AlertPriority.MEDIUM.value,
                     "category": "SHORT_SETUP",
                     "ticker": ev.ticker,
-                    "title": f"SHORT SETUP READY: {ev.ticker} [{ev.rating.value} | Score {ev.short_score:.1f}]",
-                    "message": f"Stalking trigger: {ev.execution.trigger_condition}",
+                    "title": f"👀 空方 Setup 候選就緒：{ev.ticker} [評級 {ev.rating.value}｜空方評分 {ev.short_score:.1f}]",
+                    "message": f"等待觸發條件：{ev.execution.trigger_condition}",
                     "webhook_payload": {
                         "event": "SHORT_SETUP_WATCH",
                         "ticker": ev.ticker,
@@ -149,19 +144,18 @@ def generate_alerts(
                 }
             )
 
-    # 3. Portfolio Correlation Alert
-    if portfolio_risk.correlated_short_risk_score >= 55.0:
+    if portfolio_risk.correlated_short_risk_score >= 50.0:
         alerts.append(
             {
                 "timestamp": now_iso,
                 "priority": AlertPriority.HIGH.value,
                 "category": "PORTFOLIO_CORRELATION",
                 "ticker": "PORTFOLIO",
-                "title": f"Elevated Correlated Short Risk ({portfolio_risk.correlated_short_risk_score:.0f}/100)",
+                "title": f"組合共線性風險偏高 ({portfolio_risk.correlated_short_risk_score:.0f}/100，越高代表空單越集中)",
                 "message": (
-                    f"{portfolio_risk.nominal_positions_count} nominal candidates equal only "
-                    f"{portfolio_risk.effective_independent_bets:.2f} effective independent bets "
-                    f"(Avg 60D Corr: {portfolio_risk.avg_pairwise_correlation:.2f})."
+                    f"目前 {portfolio_risk.nominal_positions_count} 檔空方候選股僅相當於 "
+                    f"{portfolio_risk.effective_independent_bets:.2f} 筆有效獨立部位 "
+                    f"(60日平均相關係數: {portfolio_risk.avg_pairwise_correlation:.2f})，請避免同板塊重複重倉。"
                 ),
                 "webhook_payload": {
                     "event": "CORRELATED_SHORT_RISK_HIGH",
@@ -187,7 +181,7 @@ def format_daily_short_market_report(
     portfolio_risk: PortfolioRiskSummary,
     alerts: List[Dict[str, Any]],
 ) -> str:
-    """Produces the comprehensive DAILY SHORT MARKET REPORT in Markdown format."""
+    """Produces the comprehensive DAILY SHORT MARKET REPORT in Traditional Chinese Markdown."""
     actionable = [
         e
         for e in evaluations
@@ -200,61 +194,65 @@ def format_daily_short_market_report(
         for e in evaluations
         if e.execution.is_fundamentally_bearish and e not in actionable
     ]
-    squeeze_watch = [e for e in evaluations if e.factors.squeeze_warning_active or e.factors.squeeze_risk_score >= 50.0]
+    squeeze_watch = [e for e in evaluations if e.factors.squeeze_warning_active or e.factors.squeeze_risk_score >= 48.0]
     catalysts = [
         e for e in evaluations if e.factors.days_to_earnings is not None or e.factors.catalyst_risk_score >= 50.0
     ]
 
     lines: List[str] = [
         "# DAILY SHORT MARKET REPORT (美股量化空方每日決策日報)",
-        f"**Generated At**: `{regime.as_of}`",
+        f"**產出時間**：`{regime.as_of}`",
         "",
-        "## 1. Macro & Market Regime Filter (大盤環境與做空總閘門)",
-        f"- **MARKET REGIME SCORE**: **{regime.market_regime_score:.1f} / 100** — `{regime.regime_label}`",
-        f"- **Short Book Policy**: {regime.short_book_policy}",
-        f"- **Max Gross Short Exposure Cap**: `{regime.max_gross_short_exposure_pct:.0f}%` | **Regime Risk Multiplier**: `{regime.regime_sizing_multiplier:.2f}x`",
-        f"- **Market Breadth (`BREADTH_WEAKNESS_SCORE`)**: `{regime.breadth.breadth_weakness_score:.1f}/100` — {regime.breadth.summary}",
-        f"- **Volatility Regime (`VOLATILITY_REGIME_SCORE`)**: `{regime.volatility.volatility_regime_score:.1f}/100` — {regime.volatility.summary} | {regime.volatility.put_call_status}",
+        "> **📊 評分方向性總覽（閱讀指南）**：",
+        "> - **`MARKET REGIME SCORE` / `BREADTH WEAKNESS` / `VOLATILITY REGIME` / 個股 `SHORT SCORE` / 因子 A~D**：**分數越高（接近 100）代表越有利空方**；**分數越低（接近 0）代表越有利多方**。",
+        "> - **`SQUEEZE RISK SCORE` (軋空風險) / `CATALYST RISK` (二元事件) / `CORRELATED SHORT RISK` (共線性風險)**：**⚠️ 分數越高代表做空危險度越高（不利空方 / 易被多方逼空），超過門檻時系統自動一票否決禁空！**",
         "",
-        "### Benchmark Index Breakdown",
-        "| Index | Close | 20EMA | 50SMA | 200SMA | 20D Ret | 25D Dist Days | Index Bear Score |",
+        "## 1. 大盤總體環境監控 (Macro & Market Regime Filter)",
+        f"- **大盤環境評分 (`MARKET REGIME SCORE`)**：**{regime.market_regime_score:.1f} / 100**（越高越有利空方，<=40 有利多方）— `{regime.regime_label}`",
+        f"- **空方部位操作準則**：{regime.short_book_policy}",
+        f"- **總空頭曝險上限**：`{regime.max_gross_short_exposure_pct:.0f}%`｜**大盤部位規模乘數**：`{regime.regime_sizing_multiplier:.2f}x`",
+        f"- **市場寬度惡化評分 (`BREADTH WEAKNESS SCORE`)**：`{regime.breadth.breadth_weakness_score:.1f}/100` — {regime.breadth.summary}",
+        f"- **波動與避險情緒 (`VOLATILITY REGIME SCORE`)**：`{regime.volatility.volatility_regime_score:.1f}/100` — {regime.volatility.summary}｜{regime.volatility.put_call_status}",
+        "",
+        "### 三大基準指數均線與派發日明細",
+        "| 指數 | 收盤價 | 20EMA (位置) | 50SMA (位置) | 200SMA | 20日報酬 | 近25日派發天數 | 指數空方分 (越高越利空) |",
         "| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for k in ["SPY", "QQQ", "IWM"]:
         if k in regime.indices:
             ix = regime.indices[k]
             lines.append(
-                f"| **{ix.ticker}** | ${ix.close:.2f} | ${ix.ema20:.2f} ({'Below' if ix.below_ema20 else 'Above'}) | "
-                f"${ix.sma50:.2f} ({'Below' if ix.below_sma50 else 'Above'}) | ${ix.sma200:.2f} | "
-                f"{ix.ret_20d_pct:+.2f}% | {ix.dist_days_25d}d | **{ix.sub_score:.1f}** |"
+                f"| **{ix.ticker}** | ${ix.close:.2f} | ${ix.ema20:.2f} ({'跌破利空' if ix.below_ema20 else '站上利多'}) | "
+                f"${ix.sma50:.2f} ({'跌破利空' if ix.below_sma50 else '站上利多'}) | ${ix.sma200:.2f} | "
+                f"{ix.ret_20d_pct:+.2f}% | {ix.dist_days_25d} 天 | **{ix.sub_score:.1f}** |"
             )
 
     lines.extend(
         [
             "",
-            "## 2. Sector Relative Weakness Ranking (板塊弱勢排行)",
-            "| Sector ETF | Close | 5D Ret | 20D Ret | 20D RS vs SPY | 25D Dist Days | Weakness Score |",
+            "## 2. GICS 板塊相對弱勢排行 (Sector Weakness Ranking)",
+            "| 板塊 ETF | 收盤價 | 5日報酬 | 20日報酬 | 20日相對 SPY 強弱 | 近25日派發日 | 板塊弱勢分 (越高越利空) |",
             "| :--- | ---: | ---: | ---: | ---: | ---: | ---: |",
         ]
     )
     for sec in regime.sector_weakness_ranking[:6]:
         lines.append(
             f"| **{sec['etf']}** | ${sec['close']:.2f} | {sec['ret_5d_pct']:+.2f}% | {sec['ret_20d_pct']:+.2f}% | "
-            f"{sec['rs_vs_spy_20d_pct']:+.2f}% | {sec['dist_days_25d']}d | **{sec['weakness_score']:.1f}** |"
+            f"{sec['rs_vs_spy_20d_pct']:+.2f}% | {sec['dist_days_25d']} 天 | **{sec['weakness_score']:.1f}** |"
         )
 
     lines.extend(
         [
             "",
-            "## 3. Actionable Short List (A+ / A 級可執行空方候選池)",
-            "> 僅包含通過安全濾網（無軋空警告、財報 > 3 天、評級 A/A+）之標的。",
+            "## 3. 現在可執行做空清單 (Actionable Short List — 僅限 A+ / A 級且安全過關)",
+            "> 必須同時滿足：`SHORT SCORE` 高分（有利空方）、評級達 `A+` 或 `A`、無軋空警報、且距離財報 > 3 天。",
             "",
         ]
     )
     if actionable:
         lines.extend(
             [
-                "| Ticker | Short Score | Rating | State | Price | Stop (ATR) | Target 1 | R/R | Bear Prob | Confidence |",
+                "| 代碼 | 空方總分 (越高越利空) | 評級 | 執行狀態 | 現價 | 動態停損 (ATR) | 目標價 1 | 風報比 | 空方勝率 | 信心水準 |",
                 "| :--- | ---: | :---: | :---: | ---: | ---: | ---: | ---: | ---: | ---: |",
             ]
         )
@@ -266,13 +264,13 @@ def format_daily_short_market_report(
                 f"{ex.bearish_probability_pct:.1f}% | {ex.confidence_pct:.1f}% |"
             )
     else:
-        lines.append("*No stocks currently pass the strict A+/A Actionable Short safety gate.*")
+        lines.append("*目前無標的同時通過 A+/A 級與安全濾網。*")
 
     lines.extend(
         [
             "",
-            "## 4. Fundamentally / Structurally Bearish BUT Not Yet Actionable (看空但暫不適合做空)",
-            "| Ticker | Short Score | Rating | Current State | Reason Not Actionable Today |",
+            "## 4. 結構/基本面看空但「暫不適合進場」名單 (Fundamentally Bearish — Wait/Watch)",
+            "| 代碼 | 空方總分 (越高越利空) | 評級 | 狀態 | 暫不進場原因與等待條件 |",
             "| :--- | ---: | :---: | :---: | :--- |",
         ]
     )
@@ -284,33 +282,33 @@ def format_daily_short_market_report(
     lines.extend(
         [
             "",
-            "## 5. Short Squeeze Risk & Upcoming Binary Catalysts (軋空警告與事件日曆)",
+            "## 5. 軋空風險監控與二元催化劑事件日曆 (Squeeze Risk & Catalyst Watch)",
         ]
     )
     if squeeze_watch:
         for ev in squeeze_watch:
-            lines.append(f"- **Squeeze Watch — `{ev.ticker}`**: {ev.factors.short_squeeze_status}")
+            lines.append(f"- **軋空警戒 — `{ev.ticker}`**：{ev.factors.short_squeeze_status}")
     else:
-        lines.append("- *No extreme short squeeze alerts active across current watchlist.*")
+        lines.append("- *目前監控清單中無極端軋空警報標的。*")
 
     if catalysts:
         for ev in catalysts:
-            lines.append(f"- **Catalyst Watch — `{ev.ticker}`**: {ev.factors.fundamental_catalyst_status}")
+            lines.append(f"- **基本面與催化劑 — `{ev.ticker}`**：{ev.factors.fundamental_catalyst_status}")
 
     lines.extend(
         [
             "",
-            "## 6. Portfolio-Level Correlated Short Risk (`CORRELATED_SHORT_RISK`)",
-            f"- **Correlated Short Risk Score**: `{portfolio_risk.correlated_short_risk_score:.1f}/100`",
-            f"- **Nominal Candidates vs Effective Independent Bets ($N_{{\\text{{eff}}}}$)**: `{portfolio_risk.nominal_positions_count}` nominal $\\rightarrow$ **`{portfolio_risk.effective_independent_bets:.2f}` effective independent bets** (Avg 60D Pairwise Correlation: `{portfolio_risk.avg_pairwise_correlation:.2f}`)",
-            f"- **Gross Short Exposure (Suggested)**: `{portfolio_risk.gross_short_exposure_pct:.1f}%` (Beta-Adjusted: `{portfolio_risk.beta_adjusted_short_exposure_pct:.1f}%`)",
+            "## 6. 投資組合共線性風險 (`CORRELATED_SHORT_RISK`)",
+            f"- **組合共線性風險分**：`{portfolio_risk.correlated_short_risk_score:.1f}/100`（⚠️ 分數越高代表空單越集中於同溫層，越不利組合風控）",
+            f"- **名目候選數 vs 有效獨立部位數 ($N_{{\\text{{eff}}}}$)**：名目 `{portfolio_risk.nominal_positions_count}` 檔 $\\rightarrow$ **實際僅相當於 `{portfolio_risk.effective_independent_bets:.2f}` 筆獨立部位**（60日平均兩兩相關係數：`{portfolio_risk.avg_pairwise_correlation:.2f}`）",
+            f"- **建議總空頭曝險**：`{portfolio_risk.gross_short_exposure_pct:.1f}%`（Beta 加權調整後：`{portfolio_risk.beta_adjusted_short_exposure_pct:.1f}%`）",
         ]
     )
     for w in portfolio_risk.risk_warnings:
         lines.append(f"  - ⚠️ {w}")
 
-    lines.extend(["", "## 7. Standardized Stock Decision Cards (個股標準化決策輸出)"])
-    for ev in evaluations[:5]:
+    lines.extend(["", "## 7. 個股標準化決策輸出卡 (Standardized Stock Decision Cards)"])
+    for ev in evaluations[:6]:
         lines.append("```text")
         lines.append(ev.formatted_decision_card)
         lines.append("```")
