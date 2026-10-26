@@ -21,7 +21,6 @@
         <input id="tickerInput" type="text" placeholder="搜尋或新增代碼 (如 AAPL, ARM)" maxlength="10">
         <button type="submit" class="btn primary">+ 新增自選 / 篩選</button>
       </form>
-      <button id="openOverrideBtn" type="button" class="btn secondary">Ortex / IBKR 借券與財報參數模擬</button>
       <button id="openReportBtn" type="button" class="btn secondary">每日空方日報 (Daily Report)</button>
       <button id="refreshBtn" type="button" class="btn accent">重新掃描 (Refresh)</button>
     </div>
@@ -151,12 +150,12 @@
               <th scope="col">進退場狀態 (FSM)</th>
               <th scope="col">做空安全分類</th>
               <th scope="col">現價 / ATR14</th>
-              <th scope="col">A: 趨勢破位 25% (↑利空)</th>
-              <th scope="col">B: 相對弱勢 15% (↑利空)</th>
-              <th scope="col">C: 籌碼派發 15% (↑利空)</th>
-              <th scope="col">D: 基本面脆弱 25% (↑利空)</th>
-              <th scope="col">E: 軋空風險 (⚠️↑危險不利空)</th>
-              <th scope="col">進場參考 / 動態停損 / 目標1</th>
+              <th scope="col">A: 趨勢破位 30% (↑利空)</th>
+              <th scope="col">B: 相對弱勢 20% (↑利空)</th>
+              <th scope="col">C: 籌碼派發 20% (↑利空)</th>
+              <th scope="col">D: 基本面脆弱 20% (↑利空)</th>
+              <th scope="col">E: 空單擁擠度 10% (⚠️↑易軋空)</th>
+              <th scope="col">關鍵壓力 / 停損 / 目標1</th>
               <th scope="col">風報比 &amp; 建議股數</th>
               <th scope="col">完整決策卡</th>
             </tr>
@@ -244,48 +243,6 @@
         </form>
       </div>
       <pre id="dailyReportPre" class="decision-pre"></pre>
-    </div>
-  </dialog>
-
-  <!-- MODAL 3: INSTITUTIONAL DATA OVERRIDE (ORTEX / IBKR BORROW FEE & CATALYST) -->
-  <dialog id="overrideModal" closedby="any" aria-labelledby="overrideModalTitle">
-    <div class="dialog-inner">
-      <div class="dialog-header">
-        <h2 id="overrideModalTitle">輸入機構級借券費率與事件參數（Ortex / IBKR 參數覆寫模擬）</h2>
-        <form method="dialog">
-          <button type="submit" class="btn secondary">關閉視窗 (Esc)</button>
-        </form>
-      </div>
-      <p class="panel-desc">當免費資料源缺乏即時 Borrow Fee Rate 或 Dealer GEX 時，系統嚴格標記為 <code>DATA UNAVAILABLE</code>。您可於此輸入實盤券商借券費率與財報天數，即時重算軋空風險與進退場建議。</p>
-      <form id="overrideForm" class="override-form">
-        <label>
-          股票代碼 (Ticker)
-          <input type="text" id="ovTicker" placeholder="例如 MSTR 或 CVNA" required>
-        </label>
-        <label>
-          年化借券費率 Borrow Fee Rate (%)
-          <input type="number" id="ovBorrowFee" step="0.1" placeholder="例如 18.5 (&ge;12% 觸發軋空警戒)">
-        </label>
-        <label>
-          做空佔流通盤比例 SI % of Float (%)
-          <input type="number" id="ovSiPct" step="0.1" placeholder="例如 24.0">
-        </label>
-        <label>
-          回補天數 Days to Cover (天)
-          <input type="number" id="ovDtc" step="0.1" placeholder="例如 6.5">
-        </label>
-        <label>
-          距離財報發布天數 (Days to Earnings)
-          <input type="number" id="ovEarningsDays" step="1" placeholder="例如 2 (&le;3天觸發紅色禁空警告)">
-        </label>
-        <label>
-          造市商 Gamma 曝險 (GEX Regime)
-          <input type="text" id="ovGex" placeholder="例如 負 Gamma 助跌區 (-$450M)">
-        </label>
-        <div class="form-actions">
-          <button type="submit" class="btn primary">套用並重算空方評分</button>
-        </div>
-      </form>
     </div>
   </dialog>
 

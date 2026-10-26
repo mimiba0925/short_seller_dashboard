@@ -302,12 +302,8 @@ class MarketDataProvider:
             missing.append("short_pct_float")
         if dtc is None:
             missing.append("days_to_cover")
-        if borrow_fee is None:
-            missing.append("borrow_fee_rate_pct (Ortex/IBKR Feed)")
         if pc_vol_ratio is None:
             missing.append("put_call_vol_ratio")
-        if gex_regime is None:
-            missing.append("gamma_exposure_regime (Dealer GEX Feed)")
 
         data = TickerMarketData(
             ticker=t,

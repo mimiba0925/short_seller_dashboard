@@ -22,9 +22,9 @@
   - **大盤環境評分 (`MARKET REGIME SCORE`, 0–100)**：`61–100` 為 **Risk-Off 空方主場**（全面開放 A+/A 級空單）；`41–60` 為 **Neutral 震盪觀察期**（部位減半）；`0–40` 為 **Risk-On 多頭環境**（禁止新開投機空單，`<30` 強制減倉 50%）。
   - **市場寬度惡化分 (`BREADTH WEAKNESS SCORE`, 0–100)**：分數越高代表越多股票跌破 `50MA/200MA`、新低家數擴大，結構越有利空方。
   - **波動與避險情緒分 (`VOLATILITY REGIME SCORE`, 0–100)**：分數越高代表 `VIX` 走升或 `VIX/VIX3M` 期限結構倒掛，避險情緒越有利空方。
-  - **個股空方總分 (`SHORT SCORE`, 0–100)** 與子因子 **A 趨勢破位 (25%)**、**B 相對弱勢 (15%)**、**C 籌碼派發 (15%)**、**D 基本面脆弱 (25%)**：分數越高代表空方共振越強（越有利空方）。
-- **⚠️ 分數越高 ＝ 做空危險度越高（不利空方 / 易被多頭軋空）**：
-  - **E 軋空風險評分 (`SQUEEZE RISK SCORE`, 0–100)**：監控 `SI% of Float`、`Days to Cover`、`Borrow Fee Rate` 與價格突破。**分數越高代表越容易發生暴力軋空（$\ge 62$ 系統自動一票否決禁空）**；分數越低越安全。
+  - **個股空方總分 (`SHORT SCORE`, 0–100)** 與子因子 **A 趨勢破位 (30%)**、**B 相對弱勢 (20%)**、**C 籌碼派發 (20%)**、**D 基本面脆弱 (20%)**：分數越高代表空方共振越強（越有利空方）。
+- **⚠️ 分數越高 ＝ 逆勢軋空危險度越高（不利空方 / 易被多頭軋空）**：
+  - **E 公開放空擁擠度與軋空風險 (`SQUEEZE RISK SCORE`, 0–100，權重 10%)**：100% 基於免費公開資料（`SI% of Float` 空單佔流通盤比、`Days to Cover` 回補天數、價格反彈突破與期權 Put/Call 流量）。**分數越高代表空頭部位越擁擠、越容易發生嘎空反彈（$\ge 62$ 系統自動一票否決禁空）**；分數越低越安全。
   - **催化劑二元事件分 (`CATALYST RISK SCORE`, 0–100)**：當距離財報發布 $\le 3$ 天時飆升至 `95` 並發出**紅色禁空警告**，防範財報跳空風險。
   - **組合共線性風險 (`CORRELATED SHORT RISK`, 0–100)**：分數越高代表多筆空單過度集中於同溫層（有效獨立部位數 $N_{\text{eff}}$ 過低），易遭同產業同步軋空。
 
@@ -43,8 +43,8 @@ Project.short_seller_dashboard/
 ├── short_dashboard/                # Python 量化規則引擎與 FastAPI 伺服器
 │   ├── app.py                      # FastAPI 應用程式與 REST API 端點
 │   ├── engine/
-│   │   ├── models.py               # 資料模型、8 狀態枚舉與 DATA UNAVAILABLE 誠信標記
-│   │   ├── data_provider.py        # yfinance 實盤資料擷取 + Ortex/IBKR 機構參數覆寫介面
+│   │   ├── models.py               # 資料模型、8 狀態枚舉與公開資料誠信標記
+│   │   ├── data_provider.py        # yfinance 實盤資料擷取（指數、板塊、個股、期權與基本面）
 │   │   ├── regime.py               # 模組 1：大盤環境、市場寬度惡化、VIX 期限結構與板塊排行
 │   │   ├── screener.py             # 模組 2：個股五維度 SHORT SCORE、催化劑與軋空風險評分
 │   │   ├── execution.py            # 模組 3：8 狀態進退場 FSM、ATR 動態停損、部位計算與標準決策卡
@@ -110,10 +110,6 @@ TSLA,Auto / AI Momentum
 ### 1. 產出單一或多檔個股之標準化空方決策卡 (`TICKER` Template)
 ```bash
 uv run python cli.py ticker COIN NVDA CVNA MSTR
-```
-若您擁有 Ortex 或 IBKR 即時借券費率（Borrow Fee Rate %），可透過 `--borrow-fee` 注入實盤參數：
-```bash
-uv run python cli.py ticker CVNA --borrow-fee 18.5 --account 250000
 ```
 
 ### 2. 產出最新每日空方市場報告 (`DAILY_SHORT_REPORT.md`)

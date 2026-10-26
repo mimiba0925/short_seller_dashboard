@@ -321,8 +321,7 @@ function openDecisionModal(stock) {
   if (stock.missing_fields && stock.missing_fields.length > 0) {
     missingBox.style.display = "block";
     missingBox.textContent =
-      `資料誠信標記 (DATA UNAVAILABLE — 尚未接入付費源之欄位，系統絕不猜測並已於信心水準折減): ` +
-      stock.missing_fields.join(", ");
+      `公開資料缺漏標記 (DATA UNAVAILABLE): ` + stock.missing_fields.join(", ");
   } else {
     missingBox.style.display = "none";
   }
@@ -368,59 +367,6 @@ async function loadDashboard(refresh = false) {
   }
 }
 
-function applyClientSideOverride(payload) {
-  if (!dashboardState) return;
-  const st = dashboardState.stocks.find((s) => s.ticker === payload.ticker);
-  if (!st) return;
-
-  const f = st.factors;
-  if (payload.borrow_fee_rate_pct !== undefined) {
-    const bf = payload.borrow_fee_rate_pct;
-    st.missing_fields = (st.missing_fields || []).filter((m) => !m.includes("borrow_fee"));
-    if (bf >= 12.0) {
-      f.squeeze_risk_score = Math.min(100, Math.max(f.squeeze_risk_score, 82));
-      f.squeeze_warning_active = true;
-      f.derivatives_bearish_score = Math.max(5, f.derivatives_bearish_score - 30);
-    }
-    f.short_squeeze_status = f.short_squeeze_status.replace(
-      "借券費率: DATA UNAVAILABLE",
-      `借券費率 (Borrow Fee): ${bf.toFixed(2)}%`
-    );
-  }
-  if (payload.days_to_earnings !== undefined) {
-    f.days_to_earnings = payload.days_to_earnings;
-    f.earnings_red_warning = payload.days_to_earnings <= 3;
-    if (f.earnings_red_warning) {
-      f.catalyst_risk_score = 95;
-    }
-  }
-  if (payload.gamma_exposure_regime) {
-    st.missing_fields = (st.missing_fields || []).filter((m) => !m.includes("gamma_exposure"));
-    f.short_squeeze_status = f.short_squeeze_status.replace(
-      "GEX: DATA UNAVAILABLE",
-      `GEX: ${payload.gamma_exposure_regime}`
-    );
-  }
-
-  st.short_score =
-    0.25 * f.trend_breakdown_score +
-    0.15 * f.relative_weakness_score +
-    0.15 * f.volume_distribution_score +
-    0.25 * f.fundamental_catalyst_score +
-    0.20 * f.derivatives_bearish_score;
-
-  if (f.earnings_red_warning) {
-    st.execution.raw_state = "WAIT";
-    st.execution.is_actionable_short = false;
-    st.execution.action = `WAIT — 【🔴 紅色警告】距離財報僅 ${f.days_to_earnings} 天，禁止新開空單以防財報跳空軋空`;
-  } else if (f.squeeze_warning_active) {
-    st.execution.raw_state = "WAIT";
-    st.execution.is_actionable_short = false;
-    st.execution.action = `WAIT — 【⚠️ 軋空風險一票否決】軋空風險評分達 ${f.squeeze_risk_score.toFixed(0)}/100（分數越高越危險），暫勿做空`;
-  }
-  renderAll();
-}
-
 // Event Listeners
 document.getElementById("refreshBtn").addEventListener("click", () => loadDashboard(true));
 
@@ -428,10 +374,6 @@ document.getElementById("openReportBtn").addEventListener("click", () => {
   if (!dashboardState) return;
   document.getElementById("dailyReportPre").textContent = dashboardState.daily_report_markdown;
   document.getElementById("reportModal").showModal();
-});
-
-document.getElementById("openOverrideBtn").addEventListener("click", () => {
-  document.getElementById("overrideModal").showModal();
 });
 
 document.getElementById("addTickerForm").addEventListener("submit", async (e) => {
@@ -461,42 +403,6 @@ document.getElementById("addTickerForm").addEventListener("submit", async (e) =>
   }
   tickerSearchQuery = ticker;
   renderAll();
-});
-
-document.getElementById("overrideForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const payload = {
-    ticker: document.getElementById("ovTicker").value.trim().toUpperCase(),
-  };
-  const bf = document.getElementById("ovBorrowFee").value;
-  const si = document.getElementById("ovSiPct").value;
-  const dtc = document.getElementById("ovDtc").value;
-  const ed = document.getElementById("ovEarningsDays").value;
-  const gex = document.getElementById("ovGex").value.trim();
-
-  if (bf !== "") payload.borrow_fee_rate_pct = parseFloat(bf);
-  if (si !== "") payload.short_pct_float = parseFloat(si);
-  if (dtc !== "") payload.days_to_cover = parseFloat(dtc);
-  if (ed !== "") payload.days_to_earnings = parseInt(ed, 10);
-  if (gex !== "") payload.gamma_exposure_regime = gex;
-
-  try {
-    const res = await fetch("/api/override", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (res.ok) {
-      dashboardState = await res.json();
-      document.getElementById("overrideModal").close();
-      renderAll();
-      return;
-    }
-  } catch (_) {
-    // Fallback to client-side override on static GitHub Pages
-  }
-  applyClientSideOverride(payload);
-  document.getElementById("overrideModal").close();
 });
 
 document.querySelectorAll(".filter-btn").forEach((btn) => {

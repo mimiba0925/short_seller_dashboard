@@ -421,10 +421,10 @@ def _score_factor_e_squeeze_and_options(
     df: pd.DataFrame,
     tech_metrics: Dict[str, Any],
 ) -> Tuple[float, float, str, bool]:
-    """Factor E: Short Squeeze & Options Risk (20% weight) + independent SQUEEZE_RISK_SCORE."""
+    """Factor E: Public Short Crowding (SI% / DTC) & Options Flow (10% weight) + independent SQUEEZE_RISK_SCORE."""
     notes = []
 
-    # 1. SQUEEZE_RISK_SCORE (0-100: ⚠️ 分數越高代表軋空風險越高 = 越不利空方 / 易被多頭逼空！)
+    # 1. SQUEEZE_RISK_SCORE (0-100: ⚠️ 分數越高代表空單越擁擠、越容易發生軋空虛火反彈；越低代表結構性下跌越純粹)
     si_pct = tdata.short_pct_float * 100.0 if tdata.short_pct_float is not None else None
     if si_pct is not None and si_pct > 100.0:
         si_pct = tdata.short_pct_float
@@ -440,7 +440,7 @@ def _score_factor_e_squeeze_and_options(
             si_sub = 15.0
         notes.append(f"SI% 佔流通盤: {si_pct:.1f}%")
     else:
-        si_sub = 35.0
+        si_sub = 30.0
         notes.append(f"SI% 佔流通盤: {DATA_UNAVAILABLE}")
 
     if tdata.days_to_cover is not None:
@@ -448,30 +448,21 @@ def _score_factor_e_squeeze_and_options(
         dtc_sub = min(100.0, max(10.0, dtc * 12.5))
         notes.append(f"回補天數 (Days to Cover): {dtc:.1f}天")
     else:
-        dtc_sub = 30.0
+        dtc_sub = 25.0
         notes.append(f"回補天數: {DATA_UNAVAILABLE}")
-
-    if tdata.borrow_fee_rate_pct is not None:
-        bf = tdata.borrow_fee_rate_pct
-        bf_sub = 95.0 if bf >= 15.0 else (70.0 if bf >= 5.0 else (40.0 if bf >= 2.0 else 10.0))
-        notes.append(f"借券費率 (Borrow Fee): {bf:.2f}%")
-    else:
-        bf_sub = 25.0
-        notes.append(f"借券費率: {DATA_UNAVAILABLE}")
 
     ret_3d = ((float(df["Close"].iloc[-1]) / float(df["Close"].iloc[-min(4, len(df))])) - 1.0) * 100.0
     price_above_20ema = float(df["Close"].iloc[-1]) > tech_metrics["ema20"]
     thrust_sub = 85.0 if (ret_3d > 6.0 and price_above_20ema) else (45.0 if price_above_20ema else 10.0)
 
-    squeeze_risk_score = float(np.clip(0.38 * si_sub + 0.25 * dtc_sub + 0.22 * bf_sub + 0.15 * thrust_sub, 0.0, 100.0))
+    squeeze_risk_score = float(np.clip(0.50 * si_sub + 0.30 * dtc_sub + 0.20 * thrust_sub, 0.0, 100.0))
     squeeze_warning = (
         squeeze_risk_score >= 62.0
         or ((si_pct or 0.0) >= 20.0 and price_above_20ema)
-        or ((tdata.borrow_fee_rate_pct or 0.0) >= 12.0)
     )
 
-    # 2. Derivatives Bearish Flow Score (0-100: 分數越高代表期權空方訊號越強且無軋空 = 越有利空方)
-    deriv_score = 45.0
+    # 2. Derivatives Bearish Flow Score (0-100: 分數越高代表期權空方訊號越強且無軋空擁擠 = 越有利空方視角)
+    deriv_score = 50.0
     if tdata.put_call_vol_ratio is not None:
         pcr = tdata.put_call_vol_ratio
         notes.append(f"期權 Put/Call 量比: {pcr:.2f}")
@@ -491,19 +482,14 @@ def _score_factor_e_squeeze_and_options(
         deriv_score += 12.0
         notes.append("上方買權賣壓沉重 (ATM Call Selling)")
 
-    if tdata.gamma_exposure_regime is not None:
-        notes.append(f"GEX: {tdata.gamma_exposure_regime}")
-    else:
-        notes.append(f"GEX: {DATA_UNAVAILABLE}")
-
     if squeeze_warning:
         deriv_score = max(5.0, deriv_score - 35.0)
-        notes.append("【⚠️ 高軋空警戒觸發】")
+        notes.append("【⚠️ 空單高度擁擠 / 提防軋空虛火反彈】")
 
     deriv_score = float(np.clip(deriv_score, 0.0, 100.0))
     status = (
-        f"軋空風險評分 {squeeze_risk_score:.0f}/100（⚠️ 分數越高代表越易被多方軋空，越不利空方；越低越安全）"
-        + ("【高軋空危險】" if squeeze_warning else "【風險可控】")
+        f"空單擁擠/軋空評分 {squeeze_risk_score:.0f}/100（⚠️ 分數越高代表空單越擁擠、易出現軋空急彈；越低代表真跌結構越純粹）"
+        + ("【高軋空擁擠警戒】" if squeeze_warning else "【擁擠度正常】")
         + f"｜期權空方籌碼分 {deriv_score:.0f}/100（越高越有利空方）｜"
         + "｜".join(notes)
     )

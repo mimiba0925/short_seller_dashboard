@@ -13,21 +13,20 @@ $$\text{MARKET REGIME} \longrightarrow \text{SECTOR} \longrightarrow \text{STOCK
 - **核心正交區分：「股票看空（Fundamentally Bearish）」vs.「現在適合做空（Actionable Short / Safe to Short）」**：
   - 高估值、現金流為負或趨勢破位的公司雖屬「看空（Fundamentally Bearish）」，但若處於大盤多頭噴出、短線嚴重超賣（$\text{RSI}_{14} < 28$）、高軋空風險（$\text{Squeeze Risk} \ge 62$）或財報前夕（$\le 3$ 天），系統強制攔截並標記為 `WAIT` 或 `WATCH`。
   - 唯有同時通過 **A+ / A 評級、大盤分數 $\ge 45$、無軋空警報、距離財報 $> 3$ 天且價格觸發 Entry Trigger** 之標的，才列入 `ACTIONABLE SHORT LIST`。
-- **資料誠信原則（Data Integrity）**：當免費公開資料源缺乏即時借券費率（Borrow Fee Rate）或造市商 Gamma 曝險（GEX）時，系統嚴格標記為 `DATA UNAVAILABLE` 並自動下調信心水準，絕不自行猜測或以 `0` 填充；同時提供 Ortex / IBKR 參數覆寫介面供實盤輸入。
+- **100% 公開免費資料驅動（Zero Paid API Dependency）**：專注於以空方體質檢驗視角觀察大盤與個股，完全採用免費公開市場數據（Yahoo Finance OHLCV、基本面財報、公開 `SI% of Float`、`Days to Cover` 與期權鏈 `Put/Call Ratio`），移除非必要的實盤券商借券費率（Borrow Fee Rate）與造市商 GEX 外部付費依賴，使所有公開欄位的資料完整度達到 100%。
 - **雙模式無縫運行**：
   - **本機即時模式**：透過 `uv run python cli.py serve` 啟動 FastAPI 後端與即時 API。
-  - **GitHub Pages 靜態發佈模式**：由 [`build_static.py`](file:///Users/ryanyang/my_code/code/Projects/Project.short_seller_dashboard/build_static.py) 執行完整規則引擎，匯出預先計算好的 [`snapshot.js`](file:///Users/ryanyang/my_code/code/Projects/Project.short_seller_dashboard/snapshot.js) 與 [`DAILY_SHORT_REPORT.md`](file:///Users/ryanyang/my_code/code/Projects/Project.short_seller_dashboard/DAILY_SHORT_REPORT.md)，前端零延遲載入並支援瀏覽器端即時模擬借券費率與財報天數覆寫。
+  - **GitHub Pages 靜態發佈模式**：由 [`build_static.py`](file:///Users/ryanyang/my_code/code/Projects/Project.short_seller_dashboard/build_static.py) 執行完整規則引擎，匯出預先計算好的 [`snapshot.js`](file:///Users/ryanyang/my_code/code/Projects/Project.short_seller_dashboard/snapshot.js) 與 [`DAILY_SHORT_REPORT.md`](file:///Users/ryanyang/my_code/code/Projects/Project.short_seller_dashboard/DAILY_SHORT_REPORT.md)，前端零延遲載入。
 
 ```mermaid
 flowchart LR
-  subgraph Sources["市場資料與機構覆寫源"]
+  subgraph Sources["100% 免費公開市場資料源"]
     YF["Yahoo Finance API\n(SPY·QQQ·IWM / VIX·VIX3M / 板塊 ETF / 個股 OHLCV)"]
     OPT["Options & Fundamentals\n(Put·Call Ratio / SI% Float / Days to Cover / 財報日曆)"]
-    OVR["Ortex / IBKR Override\n(Borrow Fee 借券費率 / Dealer GEX / 增發稀釋)"]
   end
 
   subgraph Engine["Python 量化規則引擎 (short_dashboard/engine/)"]
-    DP["data_provider.py\n批次快取 + DATA UNAVAILABLE 追蹤"]
+    DP["data_provider.py\n批次快取 + 公開資料完整性驗證"]
     M1["regime.py (模組 1)\nMarket Regime / 市場寬度 / VIX 期限結構"]
     M2["screener.py (模組 2)\n五維度 SHORT SCORE + 軋空與事件風險"]
     M3["execution.py (模組 3)\n8 狀態 FSM + 動態 ATR 停損 + 部位規模"]
@@ -44,7 +43,6 @@ flowchart LR
 
   YF --> DP
   OPT --> DP
-  OVR --> DP
   DP --> M1 --> M2 --> M3 --> M4 --> M5
   M5 --> CLI --> UI
   M5 --> SNAP --> UI
@@ -63,8 +61,8 @@ flowchart LR
 | **市場寬度惡化分 (`BREADTH WEAKNESS`)** | `0–100` | **📉 分數越高 ＝ 結構越脆弱（越有利空方）** | 整合 `>50MA%`、`>200MA%`、52W 新高低差與 10D 漲跌家數比；偵測指數撐盤但寬度破底之背離 |
 | **波動與避險情緒 (`VOLATILITY REGIME`)** | `0–100` | **📉 分數越高 ＝ 恐慌與避險升溫（越有利空方）** | 當 `VIX/VIX3M >= 1.00`（期限結構倒掛 Backwardation）時給予高分並自動提高空方權重 |
 | **個股空方總分 (`SHORT SCORE`)** | `0–100` | **📉 分數越高 ＝ 越有利空方**（越低 ＝ 越有利多方） | `>=82` 為 `A+`、`70–81` 為 `A`、`56–69` 為 `B`、`40–55` 為 `C`、`<40` 為 `D` |
-| **因子 A~D（趨勢/相對弱勢/量能派發/基本面）** | `0–100` | **📉 分數越高 ＝ 該維度越有利空方** | 權重依序為：A 趨勢破位 `25%`、B 相對弱勢 `15%`、C 籌碼派發 `15%`、D 基本面脆弱 `25%` |
-| **軋空風險評分 (`SQUEEZE RISK SCORE`)** | `0–100` | **⚠️ 分數越高 ＝ 越易被多方軋空（極端不利空方）** | 綜合 `SI% Float`、`Days to Cover`、`Borrow Fee` 與價格突破；`>=62` 觸發一票否決禁空 |
+| **因子 A~D（趨勢/相對弱勢/量能派發/基本面）** | `0–100` | **📉 分數越高 ＝ 該維度越有利空方** | 權重依序為：A 趨勢破位 `30%`、B 相對弱勢 `20%`、C 籌碼派發 `20%`、D 基本面脆弱 `20%` |
+| **公開放空擁擠度與軋空風險 (`SQUEEZE RISK SCORE`)** | `0–100` | **⚠️ 分數越高 ＝ 越易被多方軋空（極端不利空方）** | 權重 `10%`；綜合公開 `SI% Float`、`Days to Cover` 與價格突破；`>=62` 觸發一票否決禁空 |
 | **催化劑二元事件分 (`CATALYST RISK`)** | `0–100` | **⚠️ 分數越高 ＝ 二元跳空風險越高（不利新空單）** | 當距離財報 $\le 3$ 天時拉升至 `95` 並發出**紅色禁空警告** |
 | **組合共線性風險 (`CORRELATED SHORT RISK`)** | `0–100` | **⚠️ 分數越高 ＝ 空單越集中於同溫層（不利組合風控）** | 衡量名目部位數 $N$ 與有效獨立部位數 $N_{\text{eff}}$ 之落差，防止同時做空多檔高相關科技/加密股 |
 
@@ -78,11 +76,11 @@ flowchart LR
 - **波動度與避險情緒 (`VOLATILITY_REGIME_SCORE`)**：監控 `VIX` 位階與 5 日變化率、`VIX / VIX3M` 期限結構比率，以及 `SPY` 期權 Put/Call Volume Ratio。當 `VIX > 35` 且單日留長上影線時觸發 `波動極端高潮警告`，防止在空頭暴力回補前夕追空。
 
 ### 模組 2：個股空方候選池量化因子（[`short_dashboard/engine/screener.py`](file:///Users/ryanyang/my_code/code/Projects/Project.short_seller_dashboard/short_dashboard/engine/screener.py)）
-- **Factor A — 價格趨勢與形態破位 (25%)**：計算對 `20EMA`、`50DMA`、`200DMA` 的距離與斜率；自動偵測跌破 20 日水平支撐、60 日雙頂/頭肩頂 Lower-High 結構與近 10 日假突破（Failed Breakout）。若負乖離超過 $-3.0\times \text{ATR}_{14}$，自動扣減 15 分以防止短線超跌追空。
-- **Factor B — 相對強弱與動能 (15%)**：計算個股對比 `SPY` 與所屬板塊 ETF（如 `SMH`, `XLK`, `XLY`, `XLF`）之 20 日超額報酬 $\alpha_{20}$、領先大盤破底（Leading New Low），以及 60 日大盤下跌日 vs. 上漲日之 **下行 Beta 不對稱比 ($\beta^- / \beta^+$)**，搭配 `RSI(14)` 與 `MACD` 柱狀體。
-- **Factor C — 成交量與籌碼派發 (15%)**：計算近 20 日下跌日均量與上漲日均量比值（Down/Up Volume Ratio）、近 25 日機構派發天數與 20 日 Chaikin Money Flow (`CMF20`)。
-- **Factor D — 基本面與催化劑風險 (25%)**：檢核 YoY 營收成長減速/衰退、營業利益率為負或壓縮、自由現金流燒錢（Negative FCF）、高估值倍數（`EV/Sales`、`Forward P/E`），並獨立計算 `CATALYST_RISK_SCORE`（財報 $\le 3$ 天發出紅色禁空警告）。
-- **Factor E — 軋空與衍生品風險 (20%)**：獨立計算 `SQUEEZE_RISK_SCORE`（監控 `SI% of Float`、`Days to Cover`、`Borrow Fee Rate` 與價格突破）及期權空方籌碼分（異常價外賣權買入 OTM Put Buying、ATM Call Selling）。
+- **Factor A — 價格趨勢與形態破位 (30%)**：計算對 `20EMA`、`50DMA`、`200DMA` 的距離與斜率；自動偵測跌破 20 日水平支撐、60 日雙頂/頭肩頂 Lower-High 結構與近 10 日假突破（Failed Breakout）。若負乖離超過 $-3.0\times \text{ATR}_{14}$，自動扣減 15 分以防止短線超跌追空。
+- **Factor B — 相對強弱與動能 (20%)**：計算個股對比 `SPY` 與所屬板塊 ETF（如 `SMH`, `XLK`, `XLY`, `XLF`）之 20 日超額報酬 $\alpha_{20}$、領先大盤破底（Leading New Low），以及 60 日大盤下跌日 vs. 上漲日之 **下行 Beta 不對稱比 ($\beta^- / \beta^+$)**，搭配 `RSI(14)` 與 `MACD` 柱狀體。
+- **Factor C — 成交量與籌碼派發 (20%)**：計算近 20 日下跌日均量與上漲日均量比值（Down/Up Volume Ratio）、近 25 日機構派發天數與 20 日 Chaikin Money Flow (`CMF20`)。
+- **Factor D — 基本面與催化劑風險 (20%)**：檢核 YoY 營收成長減速/衰退、營業利益率為負或壓縮、自由現金流燒錢（Negative FCF）、高估值倍數（`EV/Sales`、`Forward P/E`），並獨立計算 `CATALYST_RISK_SCORE`（財報 $\le 3$ 天發出紅色禁空警告）。
+- **Factor E — 公開放空擁擠度與期權情緒 (10%)**：完全基於公開數據計算 `SQUEEZE_RISK_SCORE`（`SI% of Float` 佔 50%、`Days to Cover` 佔 30%、價格突破強度佔 20%）及期權 Put/Call 流量。
 
 ### 模組 3：精確進退場規則引擎（[`short_dashboard/engine/execution.py`](file:///Users/ryanyang/my_code/code/Projects/Project.short_seller_dashboard/short_dashboard/engine/execution.py)）
 - **8 狀態有限狀態機 (FSM)**：細分為 `WAIT`、`WATCH`、`SHORT SETUP`、`ENTRY`、`ADD`、`HOLD`、`REDUCE`、`EXIT`。
@@ -97,7 +95,7 @@ flowchart LR
 - **無前視偏誤回測 (Walk-Forward Backtester)**：所有支撐價、均線與 ATR 嚴格僅使用 $\le t$ 日收盤資料，於 $t+1$ 日開盤價扣除雙邊滑價（10 bps）與年化借券成本（2.0%）進場，並統計 `A+ / A / B / C` 各等級之勝率、平均 R 倍數、獲利因子（Profit Factor）、Sharpe Ratio 與最大回撤。
 
 ### 模組 5：視覺化介面、日報與標準化輸出（[`reporting.py`](file:///Users/ryanyang/my_code/code/Projects/Project.short_seller_dashboard/short_dashboard/engine/reporting.py)、[`short_dashboard/static/`](file:///Users/ryanyang/my_code/code/Projects/Project.short_seller_dashboard/short_dashboard/static)）
-- **繁體中文響應式 Web Dashboard**：遵循現代 Web 標準（`<meta name="color-scheme" content="light dark">`、`light-dark()` 深淺色令牌、`@container` 響應式堆疊表格、`<dialog closedby="any">` 點擊外部關閉彈窗），支援篩選器切換、點擊任一列開啟個股完整決策卡、檢視每日空方日報與模擬 Ortex/IBKR 借券參數。
+- **繁體中文響應式 Web Dashboard**：遵循現代 Web 標準（`<meta name="color-scheme" content="light dark">`、`light-dark()` 深淺色令牌、`@container` 響應式堆疊表格、`<dialog closedby="any">` 點擊外部關閉彈窗），支援篩選器切換、點擊任一列開啟個股完整決策卡與檢視每日空方日報。
 - **TradingView Pine Script v5**：於 [`pinescript/short_seller_regime_and_setup.pine`](file:///Users/ryanyang/my_code/code/Projects/Project.short_seller_dashboard/pinescript/short_seller_regime_and_setup.pine) 提供完整圖表指標與右上角 HUD 面板。
 
 ---

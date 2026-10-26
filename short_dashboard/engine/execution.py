@@ -277,8 +277,8 @@ def evaluate_execution_and_triggers(
     suggested_shares = min(raw_shares, max_notional_shares)
     suggested_notional = round(suggested_shares * entry_ref, 2)
 
-    total_tracked_fields = 9
-    avail_ratio = max(0.55, (total_tracked_fields - len(tdata.missing_fields)) / total_tracked_fields)
+    total_tracked_fields = 7
+    avail_ratio = max(0.65, (total_tracked_fields - len(tdata.missing_fields)) / total_tracked_fields)
     regime_align = min(100.0, regime.market_regime_score * 1.15)
     bearish_prob = float(
         np.clip(
@@ -292,8 +292,8 @@ def evaluate_execution_and_triggers(
     )
     confidence = float(
         np.clip(
-            avail_ratio * (0.55 * short_score + 0.30 * regime_align + (15.0 if trigger_fired else 5.0)),
-            20.0,
+            avail_ratio * (0.58 * short_score + 0.30 * regime_align + (15.0 if trigger_fired else 6.0)),
+            25.0,
             95.0,
         )
     )
@@ -354,12 +354,13 @@ def evaluate_stock(
     f_d, cat_risk_score, fund_str, earn_red = _score_factor_d_fundamental_catalyst(tdata)
     f_e, sqz_risk_score, sqz_str, sqz_warn = _score_factor_e_squeeze_and_options(tdata, df, tech_metrics)
 
+    # Pure public-data Bearish Lens weights: A=30%, B=20%, C=20%, D=20%, E=10%
     short_score = (
-        0.25 * f_a
-        + 0.15 * f_b
-        + 0.15 * f_c
-        + 0.25 * f_d
-        + 0.20 * f_e
+        0.30 * f_a
+        + 0.20 * f_b
+        + 0.20 * f_c
+        + 0.20 * f_d
+        + 0.10 * f_e
     )
     short_score = round(float(np.clip(short_score, 0.0, 100.0)), 1)
     rating = assign_rating(short_score, sqz_warn, earn_red)
