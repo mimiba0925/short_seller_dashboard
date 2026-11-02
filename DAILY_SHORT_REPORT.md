@@ -1,5 +1,5 @@
 # DAILY SHORT MARKET REPORT (美股量化空方每日決策日報)
-**產出時間**：`2026-11-02 17:35:59`
+**產出時間**：`2026-11-02 18:57:00`
 
 > **📊 評分方向性總覽（閱讀指南）**：
 > - **`MARKET REGIME SCORE` / `BREADTH WEAKNESS` / `VOLATILITY REGIME` / 個股 `SHORT SCORE` / 因子 A~D**：**分數越高（接近 100）代表越有利空方**；**分數越低（接近 0）代表越有利多方**。
